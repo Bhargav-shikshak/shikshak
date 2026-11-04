@@ -3,7 +3,7 @@
 .primary-button, .secondary-button {
   display: inline-flex; justify-content: center; align-items: center; gap: 8px;
   min-height: 40px; padding: 8px 13px; border: 1px solid transparent; border-radius: 9px;
-  font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center;
+  font-size: 13px; font-weight: 600; line-height: 1.3; text-align: center;
 }
 .primary-button { background: var(--coral); color: #271f21; }
 .primary-button:hover:not(:disabled) { background: #ee6f4d; }
@@ -17,13 +17,13 @@
 .empty-state h3 { color: var(--ink); font-size: 17px; }
 .empty-state p { color: var(--muted); font-size: 13px; max-width: 340px; }
 .empty-state .secondary-button { margin-top: 4px; }
-.dialog { width: min(520px, calc(100% - 24px)); padding: 0; max-height: min(720px, calc(100dvh - 28px)); border: 1px solid var(--line); border-radius: 17px; color: var(--ink); background: var(--surface); box-shadow: 0 20px 90px #171a3050; overscroll-behavior: contain; }
+.dialog { font-family: var(--font-body); width: min(520px, calc(100% - 24px)); padding: 0; max-height: min(720px, calc(100dvh - 28px)); border: 1px solid var(--line); border-radius: 17px; color: var(--ink); background: var(--surface); box-shadow: 0 20px 90px #171a3050; overscroll-behavior: contain; }
 .dialog::backdrop { background: #23253972; backdrop-filter: blur(4px); }
 .dialog-wide { width: min(575px, calc(100% - 24px)); }
 .dialog-content { position: relative; padding: 24px; }
 .close-dialog { position: absolute; top: 13px; right: 13px; }
 .detail-identity { display: flex; align-items: center; gap: 13px; margin-bottom: 18px; padding-right: 31px; }
-.detail-identity h2 { font-size: 25px; line-height: 1.15; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.detail-identity h2 { font-family: var(--font-body); font-size: 25px; font-weight: 700; line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .detail-identity p:not(.eyebrow) { color: var(--muted); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
 .detail-identity .eyebrow { margin-bottom: 3px; }
 .detail-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -61,7 +61,7 @@
 .connection-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
 .connection-row + .connection-row { border-top: 1px solid var(--line); }
 .connection-id { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.connection-id h3 { font-size: 15px; }
+.connection-id h3 { font-family: var(--font-body); font-size: 15px; font-weight: 700; }
 .connection-id p, .connection-id small { color: var(--muted); font-size: 12px; }
 .connection-id small { display: flex; align-items: center; gap: 3px; margin-top: 3px; }
 .match-empty { margin-top: 9px; padding-block: 30px; }
@@ -81,7 +81,7 @@
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .editor-form textarea { resize: vertical; }
 .editor-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
-.editor-form legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.editor-form legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
 .pick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick-tags button { padding: 6px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; }
 .pick-tags button[aria-pressed="true"] { color: #494472; background: #e9e5f3; border-color: #cfc6e3; font-weight: 700; }
