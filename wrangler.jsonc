@@ -4,5 +4,8 @@
   "compatibility_date": "2026-03-01",
   "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
   "durable_objects": { "bindings": [{ "name": "DEMO_SESSIONS", "class_name": "DemoSession" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DemoSession"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DemoSession"] }],
+  "previews": {
+    "durable_objects": { "bindings": [{ "name": "DEMO_SESSIONS", "class_name": "DemoSession" }] }
+  }
 }

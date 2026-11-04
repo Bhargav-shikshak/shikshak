@@ -14,8 +14,10 @@ interface Props {
   onOpen: (item: DiscoveryListing) => void;
   mobileVisible: boolean;
 }
-const tileUrl = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const tileCredit = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
+const tileUrl = env?.VITE_TILE_URL?.trim() || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const tileCredit = env?.VITE_TILE_ATTRIBUTION?.trim() ||
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
 
 export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOpen, mobileVisible }: Props) {
   const node = useRef<HTMLDivElement>(null);
@@ -35,7 +37,12 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
     if (!node.current) return;
     const instance = L.map(node.current, { zoomControl: false, scrollWheelZoom: false, minZoom: 10, maxZoom: 18, attributionControl: true })
       .setView([centerLat, centerLng], 13);
-    const basemap = L.tileLayer(tileUrl, { maxZoom: 19, attribution: tileCredit });
+    const basemap = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      updateWhenIdle: true,
+      keepBuffer: 1,
+      attribution: tileCredit,
+    });
     basemap.on('tileerror', () => setTiles((value) => value === 'ready' ? value : 'offline'));
     basemap.on('tileload', () => setTiles('ready')).addTo(instance);
     instance.attributionControl.setPrefix(false);
