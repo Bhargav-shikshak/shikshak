@@ -9,6 +9,7 @@ import { Explore } from './components/Explore';
 import { ListingEditor } from './components/ListingEditor';
 import { Matches } from './components/Matches';
 import './workspace.css';
+import './notebook.css';
 
 type View = 'explore' | 'matches' | 'listing';
 const views = [
