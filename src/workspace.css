@@ -3,7 +3,7 @@
 .primary-button, .secondary-button {
   display: inline-flex; justify-content: center; align-items: center; gap: 8px;
   min-height: 40px; padding: 8px 13px; border: 1px solid transparent; border-radius: 9px;
-  font-size: 13px; font-weight: 800; line-height: 1.25; text-align: center;
+  font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center;
 }
 .primary-button { background: var(--coral); color: #271f21; }
 .primary-button:hover:not(:disabled) { background: #ee6f4d; }
@@ -23,7 +23,7 @@
 .dialog-content { position: relative; padding: 24px; }
 .close-dialog { position: absolute; top: 13px; right: 13px; }
 .detail-identity { display: flex; align-items: center; gap: 13px; margin-bottom: 18px; padding-right: 31px; }
-.detail-identity h2 { font-size: 25px; line-height: 1.15; letter-spacing: -.05em; overflow-wrap: anywhere; }
+.detail-identity h2 { font-size: 25px; line-height: 1.15; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .detail-identity p:not(.eyebrow) { color: var(--muted); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
 .detail-identity .eyebrow { margin-bottom: 3px; }
 .detail-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -32,7 +32,7 @@
 .detail-about { font-size: 14px; color: var(--muted); line-height: 1.55; margin: 4px 0 14px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .detail-tags span { font-size: 12px; padding: 5px 7px; }
 .detail-footer { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding-top: 14px; margin-top: 17px; border-top: 1px solid var(--line); }
-.detail-footer strong { font-size: 21px; letter-spacing: -.04em; }
+.detail-footer strong { font-size: 21px; letter-spacing: -.015em; }
 .detail-privacy { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 .toast { position: fixed; bottom: 18px; right: 18px; z-index: 50; display: flex; align-items: center; gap: 9px; max-width: min(420px, calc(100% - 36px)); padding: 7px 8px 7px 12px; color: #fff; background: var(--ink); border-radius: 10px; box-shadow: var(--shadow); font-size: 13px; }
 .toast .icon-button { color: #fff; }
@@ -43,10 +43,10 @@
 .workspace-heading > p:last-child { color: var(--muted); line-height: 1.55; }
 .workspace-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(242px, .41fr); gap: 18px; align-items: start; }
 .workspace-panel { min-width: 0; padding: 17px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-.workspace-panel h2 { font-size: 20px; letter-spacing: -.04em; margin-bottom: 11px; }
+.workspace-panel h2 { font-size: 20px; letter-spacing: -.015em; margin-bottom: 11px; }
 .workspace-aside { background: #eeeaf5; border: 1px solid #e4def0; border-radius: 14px; padding: 18px; color: #37394f; }
 .aside-icon { display: inline-grid; place-items: center; width: 39px; height: 39px; border-radius: 9px; background: #ddd6ec; color: #4f4a79; margin-bottom: 8px; }
-.workspace-aside h2 { font-size: 17px; letter-spacing: -.04em; margin-bottom: 6px; }
+.workspace-aside h2 { font-size: 17px; letter-spacing: -.015em; margin-bottom: 6px; }
 .workspace-aside p, .workspace-aside li { font-size: 13px; line-height: 1.55; }
 .workspace-aside p + p { margin-top: 8px; }
 .workspace-aside ol { padding: 0; margin: 10px 0 0; list-style: none; display: grid; gap: 8px; }
@@ -118,7 +118,7 @@
   .results-bar { margin-top: 16px; }
   .results-bar h2 { font-size: 21px; }
   .mobile-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #eeedf2; padding: 3px; border-radius: 9px; margin-bottom: 9px; }
-  .mobile-switch button { display: flex; gap: 5px; justify-content: center; align-items: center; min-height: 32px; border: 0; background: transparent; border-radius: 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
+  .mobile-switch button { display: flex; gap: 5px; justify-content: center; align-items: center; min-height: 32px; border: 0; background: transparent; border-radius: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
   .mobile-switch button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
   .map-shell { display: none; }
   .map-shell.map-mobile-visible { display: block; position: relative; top: auto; height: clamp(350px, 61dvh, 630px); border-radius: 13px; }
