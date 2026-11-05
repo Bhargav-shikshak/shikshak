@@ -15,6 +15,8 @@ export function Dashboard({ account, openExplore, openProfile, openClassroom }: 
 }) {
   const role = account.role as Role;
   const { data, error, refresh } = useResource(useCallback((signal: AbortSignal) => api.classrooms(role, signal), [role]));
+  const bookingResource = useResource(useCallback((signal: AbortSignal) => api.bookings(role, signal), [role]));
+  const bookingPending = (bookingResource.data ?? []).filter(request => request.status === 'pending');
   const classrooms = data ?? [];
   const now = Date.now();
   const upcoming = classrooms.flatMap(room => room.classroom.sessions
@@ -36,6 +38,21 @@ export function Dashboard({ account, openExplore, openProfile, openClassroom }: 
     </div>
     {error && <ErrorNotice message={error} retry={refresh}/>}
     {!data && !error && <p role="status">Loading your learning workspace…</p>}
+    {role === 'teacher' && <section className="workspace-panel dashboard-booking-inbox">
+      <div className="dashboard-heading"><h2><CalendarDays size={20}/> Class requests to review</h2>
+        <button type="button" onClick={openExplore}>Open bookings <ArrowRight size={15}/></button></div>
+      {bookingResource.error && <ErrorNotice message={bookingResource.error} retry={bookingResource.refresh}/>}
+      {!bookingResource.data && !bookingResource.error && <p role="status">Checking for new class requests…</p>}
+      {bookingResource.data && bookingPending.length === 0 &&
+        <p className="admin-intro">No new requests right now. Students can book directly from tutor profiles.</p>}
+      {bookingPending.slice(0, 5).map(request => <button key={request.id} type="button"
+        className="dashboard-row" onClick={openExplore}>
+        <span className="dashboard-date"><CalendarDays size={17}/></span>
+        <span><strong>{request.studentName} requested {request.subject}</strong>
+          <small>{formatDate(request.startsAt)} · {request.grade}</small></span>
+        <ArrowRight size={16}/>
+      </button>)}
+    </section>}
     <div className="dashboard-stats">
       <div><GraduationCap size={20}/><strong>{classrooms.length}</strong><span>{role === 'teacher' ? 'Active students' : 'Active tutors'}</span></div>
       <div><CalendarDays size={20}/><strong>{upcoming.length}</strong><span>Upcoming classes</span></div>
@@ -44,8 +61,9 @@ export function Dashboard({ account, openExplore, openProfile, openClassroom }: 
     </div>
     <div className="dashboard-columns">
       <section className="workspace-panel">
-        <div className="dashboard-heading"><h2><CalendarDays size={20}/> Upcoming classes</h2><button type="button" onClick={openExplore}>Explore nearby <ArrowRight size={15}/></button></div>
-        {upcoming.length === 0 && <div className="dashboard-empty"><CalendarDays size={24}/><strong>No upcoming classes yet</strong><p>Once you match, your teacher can schedule classes in your shared classroom.</p><button className="secondary-button" onClick={openExplore}>Find {role === 'teacher' ? 'students' : 'tutors'}</button></div>}
+        <div className="dashboard-heading"><h2><CalendarDays size={20}/> Upcoming classes</h2>
+          <button type="button" onClick={openExplore}>{role === 'teacher' ? 'View bookings' : 'Find tutors'} <ArrowRight size={15}/></button></div>
+        {upcoming.length === 0 && <div className="dashboard-empty"><CalendarDays size={24}/><strong>No upcoming classes yet</strong><p>Accepted bookings open a shared classroom with a schedule and notes.</p><button className="secondary-button" onClick={openExplore}>{role === 'teacher' ? 'Review bookings' : 'Find tutors'}</button></div>}
         {upcoming.slice(0, 8).map(session => <button className="dashboard-row" key={session.id} onClick={() => openClassroom(session.partner.id)} type="button">
           <span className="dashboard-date"><CalendarDays size={17}/></span><span><strong>{session.title}</strong><small>{session.partner.name} · {formatDate(session.startsAt)}</small></span><ArrowRight size={16}/>
         </button>)}
@@ -61,9 +79,9 @@ export function Dashboard({ account, openExplore, openProfile, openClassroom }: 
     <div className="dashboard-columns dashboard-secondary">
       <section className="workspace-panel">
         <div className="dashboard-heading"><h2><MessageCircle size={20}/>{role === 'teacher' ? 'Your students' : 'Your tutors'}</h2></div>
-        {classrooms.length === 0 && <p className="admin-intro">No active teaching relationships yet. Publish your listing and match to begin.</p>}
+        {classrooms.length === 0 && <p className="admin-intro">No accepted bookings yet. New requests will appear in Bookings.</p>}
         {classrooms.map(({ partner }) => <button key={partner.id} className="dashboard-row" type="button" onClick={() => openClassroom(partner.id)}>
-          <span className="profile-monogram mini">{partner.name.slice(0, 2).toUpperCase()}</span><span><strong>{partner.name}</strong><small>{partner.locality} · {partner.subjects.join(', ')}</small></span><ArrowRight size={16}/>
+          <span className="profile-monogram mini">{partner.name.slice(0, 2).toUpperCase()}</span><span><strong>{partner.name}</strong><small>{role === 'teacher' ? 'Student · accepted booking' : partner.locality + ' · ' + partner.subjects.join(', ')}</small></span><ArrowRight size={16}/>
         </button>)}
       </section>
       <section className="workspace-panel">
