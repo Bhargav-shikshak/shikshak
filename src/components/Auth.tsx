@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, BookOpen, GraduationCap, LockKeyhole, ShieldCheck } from 'lucide-react';
-import type { Catalog, PublicAccount, Role } from '../../shared/domain';
+import type { Catalog, HomeArea, PublicAccount, Role } from '../../shared/domain';
 import { api, isBrowserDemo } from '../api';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 import { ErrorNotice } from './Common';
+import { HomeAreaPicker } from './HomeAreaPicker';
 
 export function Auth({ catalog, onSuccess, admin = false }: {
   catalog: Catalog;
@@ -15,7 +16,8 @@ export function Auth({ catalog, onSuccess, admin = false }: {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [localityId, setLocalityId] = useState(catalog.defaultLocality);
+  const localityId = catalog.defaultLocality;
+  const [homeArea, setHomeArea] = useState<HomeArea | null>(null);
   const [setupToken, setSetupToken] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,10 +44,12 @@ export function Auth({ catalog, onSuccess, admin = false }: {
     setBusy(true);
     setError('');
     try {
+      if (mode === 'signup' && (!homeArea?.city.trim() || !homeArea?.locality.trim()))
+        throw new Error('Place your home neighbourhood marker and confirm the city and locality.');
       const account = mode === 'bootstrap'
         ? await api.bootstrapAdmin({ name, email, password, localityId, setupToken })
         : mode === 'signup'
-          ? await api.signup({ name, email, password, role, localityId })
+          ? await api.signup({ name, email, password, role, localityId, homeArea: homeArea! })
           : await api.login(email, password);
       if (admin && account.role !== 'admin') {
         await api.logout();
@@ -105,7 +109,12 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         {mode !== 'login' && <label>Your name<input required autoComplete="name" maxLength={60} value={name} onChange={event => setName(event.target.value)} placeholder="Full name"/></label>}
         <label>Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com"/></label>
         <label>Password<input required type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'login' ? 1 : 10} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} placeholder={mode === 'login' ? 'Your password' : 'At least 10 characters'}/></label>
-        {mode !== 'login' && <label>Your neighbourhood<select value={localityId} onChange={event => setLocalityId(event.target.value)}>{catalog.localities.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label>}
+        {mode === 'signup' && <div className="home-area-group">
+          <h3>Choose your home neighbourhood</h3>
+          <p className="field-help">Place the marker near your neighbourhood, not your home address. The city and locality will fill automatically.</p>
+          <HomeAreaPicker value={homeArea} onChange={setHomeArea} center={catalog.center}/>
+          <p className="field-help">After signup, home location can be changed only once every 30 days.</p>
+        </div>}
         {mode === 'bootstrap' && <label>Server setup key<input required type="password" autoComplete="off" value={setupToken} onChange={event => setSetupToken(event.target.value)} placeholder="ADMIN_BOOTSTRAP_TOKEN"/></label>}
         {error && <ErrorNotice message={error}/>}
         <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Create administrator' : 'Create my account'}<ArrowRight size={17}/></button>
