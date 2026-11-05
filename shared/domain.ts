@@ -1,5 +1,7 @@
 export type Role = 'student' | 'teacher';
 export type AccountRole = Role | 'admin';
+export type BookingStatus = 'pending' | 'accepted' | 'rejected';
+/** Legacy mutual-interest statuses are retained only for old local data migrations. */
 export type ConnectionStatus = 'incoming' | 'sent' | 'matched';
 export interface Point { lat: number; lng: number }
 /** Only a coarse neighbourhood-level point is kept. Never store household coordinates. */
@@ -55,7 +57,7 @@ export interface Listing extends ListingDraft {
 export interface DiscoveryListing extends Listing {
   distance: number;
   saved: boolean;
-  connection: ConnectionStatus | null;
+  connection: BookingStatus | null;
   baseRate?: number;
   travelFee?: number;
 }
@@ -80,6 +82,23 @@ export interface Filters {
   saved: boolean;
 }
 export interface Discovery { listings: DiscoveryListing[]; origin: Point; total: number }
+/** Only these booking details are disclosed to the receiving tutor. */
+export interface BookingRequest {
+  id: string;
+  teacherId: string;
+  studentId: string;
+  studentName: string;
+  teacherName: string;
+  subject: string;
+  grade: string;
+  startsAt: string;
+  durationMinutes: number;
+  note: string;
+  quotedRate: number;
+  status: BookingStatus;
+  createdAt: string;
+  respondedAt: string | null;
+}
 export interface Connection { listing: Listing; status: ConnectionStatus }
 export interface Message { id: string; authorId: string; body: string; sentAt: string }
 export interface PriceSettings {
