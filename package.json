@@ -14,7 +14,8 @@
     "start": "node demo-dist/standalone.js",
     "build:demo": "npm run build && vite build --ssr demo/standalone.ts --outDir demo-dist",
     "test:platform": "node scripts/verify-platform.mjs",
-    "test:browser-demo": "node scripts/verify-browser-demo.mjs"
+    "test:browser-demo": "node scripts/verify-browser-demo.mjs",
+    "test:pdf-notes": "node scripts/verify-pdf-notes.mjs"
   },
   "dependencies": {
     "leaflet": "1.9.4",
