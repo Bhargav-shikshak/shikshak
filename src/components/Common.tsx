@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { AlertCircle, ArrowUpRight, BookOpen, Clock3, GraduationCap, Heart, MapPin, X } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BookOpen, Clock3, GraduationCap, Heart, MapPin, BadgeCheck, X } from 'lucide-react';
 import type { BookingStatus, DiscoveryListing, Listing } from '../../shared/domain';
 
 export const money = (rate: number) => '₹' + rate.toLocaleString('en-IN');
@@ -46,11 +46,11 @@ export function ListingCard({ item, selected, busy, onOpen, onSave }: {
 }) {
   return <article className={'listing-card' + (selected ? ' selected-card' : '')} id={'card-' + item.id}>
     <div className="card-top"><Avatar listing={item}/><button className={'icon-button save-button' + (item.saved ? ' is-saved' : '')} type="button" aria-label={(item.saved ? 'Unsave ' : 'Save ') + item.name} aria-pressed={item.saved} disabled={busy} onClick={onSave}><Heart size={18}/></button></div>
-    <h3>{item.name}</h3><p className="card-headline">{item.headline}</p>
+    <h3>{item.name} {item.role === 'teacher' && item.teacherVerified && <BadgeCheck size={17} color="#1683e2" aria-label="Verified by Shikshak"/>}</h3><p className="card-headline">{item.headline}</p>
     <div className="card-location"><MapPin size={14}/>{item.locality}<span>·</span>{item.distance < .15 ? 'Nearby' : item.distance.toFixed(1) + ' km'}</div>
     <div className="subject-tags">{item.subjects.slice(0, 2).map((subject) => <span key={subject}>{subject}</span>)}
       {item.subjects.length > 2 && <span aria-label={(item.subjects.length - 2) + ' more subjects'}>+{item.subjects.length - 2}</span>}</div>
-    <div className="card-bottom"><div><strong>{money(item.rate)}</strong><span> / hr</span>{item.role === 'teacher' && <small className="price-explanation">{item.travelFee ? money(item.travelFee) + ' travel included' : 'Platform quote'}</small>}</div>
+    <div className="card-bottom"><div><strong>{money(item.rate)}</strong><span> / hr</span>{item.role === 'teacher' && <small className="price-explanation">{item.travelFee ? money(item.travelFee) + ' travel included' : 'Tutor rate, no travel fee'}</small>}</div>
       <button className="text-button" type="button" onClick={onOpen} aria-label={'View profile for ' + item.name}>View profile <ArrowUpRight size={15}/></button></div>
   </article>;
 }
@@ -59,7 +59,7 @@ export function ListingDetails({ listing, status, busy, onBook, onChat }: {
   listing: Listing; status: BookingStatus | null; busy: boolean; onBook: () => void; onChat: () => void;
 }) {
   return <>
-    <div className="detail-identity"><Avatar listing={listing} large/><div><p className="eyebrow">{listing.role === 'teacher' ? 'TUTOR PROFILE' : 'LEARNER LISTING'}</p><h2>{listing.name}</h2><p>{listing.headline}</p></div></div>
+    <div className="detail-identity"><Avatar listing={listing} large/><div><p className="eyebrow">{listing.role === 'teacher' ? 'TUTOR PROFILE' : 'LEARNER LISTING'}</p><h2>{listing.name} {listing.role === 'teacher' && listing.teacherVerified && <BadgeCheck size={20} color="#1683e2" aria-label="Verified by Shikshak"/>}</h2><p>{listing.headline}</p></div></div>
     <div className="detail-meta"><span><MapPin size={16}/>{listing.locality}</span><span><Clock3 size={16}/>{listing.availability}</span><span><GraduationCap size={17}/>{listing.grades.join(', ')}</span></div>
     <h3>About</h3><p className="detail-about">{listing.description}</p>
     {listing.role === 'student' && (listing.weakSubjects?.length ?? 0) > 0 && <><h3>Needs help with</h3><div className="subject-tags detail-tags">{listing.weakSubjects?.map(subject => <span key={subject}>{subject}</span>)}</div></>}
