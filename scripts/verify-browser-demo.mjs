@@ -51,14 +51,20 @@ assert.equal(studentsTeachers.status, 200);
 const teacher = studentsTeachers.data.listings.find(x => x.name === 'Arjun Bora');
 assert.ok(teacher, 'Seeded tutor appears as a regular account');
 assert.ok(teacher.rate >= 400, 'Server-grade rate policy is reused');
-assert.ok(teacher.connection === 'matched', 'Real demo tutor is pre-matched');
+assert.equal(teacher.connection, 'accepted', 'Existing seeded tutoring is an accepted booking');
 assert.ok(studentsTeachers.data.listings.every(x => !x.fictional), 'No unmatchable preview cards are injected');
 const rahul = studentsTeachers.data.listings.find(x => x.name === 'Rahul Kalita');
 assert.ok(rahul && rahul.id === 't-rahul', 'Legacy Rahul listing becomes a persistent account with stable ID');
 assert.ok(rahul.subjects.includes('Computer Science'), 'Fixture subject and listing details are retained');
-let rahulInterest = await call('/workspaces/student/listings/' + rahul.id + '/interest', { method: 'PUT' });
-assert.equal(rahulInterest.status, 200, 'Student can now send interest to former preview tutor');
-assert.equal(rahulInterest.data.status, 'sent');
+let rahulBooking = await call('/workspaces/student/bookings', {
+  method: 'POST', body: {
+    teacherId: rahul.id, subject: 'Computer Science', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60,
+    note: 'Can you help me with programming?',
+  },
+});
+assert.equal(rahulBooking.status, 201, 'Student can request a class with former preview tutor');
+assert.equal(rahulBooking.data.status, 'pending');
 
 const previewAccounts = await listBrowserDemoAccounts();
 const rahulAccount = previewAccounts.find(x => x.id === 't-rahul');
@@ -84,8 +90,10 @@ assert.ok(assignments.length >= 100 && assignments.some(x => x.reviewedAt) && as
 assert.ok(chats.length >= 250, 'Months of conversations populate chat histories');
 assert.ok(classes.some(x => new Date(x.startsAt).getTime() < Date.now() - 90 * 86400000),
   'Completed classes date back more than three months');
-assert.ok(seeded.interests && Object.values(seeded.interests).some(x => x.length >= 3),
-  'Each role has meaningful connections and pending interests');
+assert.ok(Object.values(seeded.bookings).filter(x => x.status === 'accepted').length >= 35,
+  'Existing historical teaching pairs were migrated to accepted bookings');
+assert.ok(Object.values(seeded.bookings).some(x => x.status === 'pending'), 'Pending booking requests exist');
+assert.ok(Object.values(seeded.bookings).some(x => x.status === 'rejected'), 'Declined booking requests exist');
 
 const rooms = await call('/workspaces/student/classrooms');
 assert.equal(rooms.status, 200);
@@ -99,10 +107,13 @@ assert.ok(originalRoom.homework.some(x => x.submittedAt && !x.reviewedAt), 'Orig
 
 // Reply from the formerly unmatchable sample account and exercise messaging.
 await switchBrowserDemoAccount(rahulAccount.id);
-let rahulDetails = await call('/workspaces/teacher/connections');
-assert.ok(rahulDetails.data.some(x => x.listing.id === studentId && x.status === 'incoming'), 'Former preview receives interest');
-let rahulMatch = await call('/workspaces/teacher/listings/' + studentId + '/interest', { method: 'PUT' });
-assert.equal(rahulMatch.data.status, 'matched', 'Former preview teacher can match back');
+let rahulDetails = await call('/workspaces/teacher/bookings');
+assert.ok(rahulDetails.data.some(x => x.studentId === studentId && x.status === 'pending'), 'Former preview tutor receives student booking request');
+assert.ok(!JSON.stringify(rahulDetails.data).includes('"homeArea"'), 'Teacher booking feed never exposes student home location');
+let rahulDecision = await call('/workspaces/teacher/bookings/' + rahulBooking.data.id, {
+  method: 'PUT', body: { decision: 'accept' },
+});
+assert.equal(rahulDecision.data.status, 'accepted', 'Former preview tutor can accept booking');
 const rahulMessage = await call('/workspaces/teacher/connections/' + studentId + '/messages', {
   method: 'POST', body: { id: crypto.randomUUID(), body: 'I can help with coding and maths.' },
 });
@@ -128,8 +139,7 @@ result = await call('/auth/login', { method: 'POST', body: {
 assert.equal(result.status, 200);
 assert.equal(result.data.role, 'teacher');
 result = await call('/workspaces/teacher/discovery');
-assert.equal(result.status, 200);
-assert.ok(result.data.listings.some(x => x.id === studentId), 'Teacher can find real students');
+assert.equal(result.status, 403, 'Teachers cannot browse student locations or discovery details');
 result = await call('/workspaces/student/discovery');
 assert.equal(result.status, 403, 'Local mode must preserve role permissions');
 
@@ -215,21 +225,33 @@ assert.ok(teacherAccount && adminAccount && originalNewStudent);
 let switched = await switchBrowserDemoAccount(teacherAccount.id);
 assert.equal(switched.role, 'teacher');
 result = await call('/workspaces/teacher/discovery');
-assert.ok(result.data.listings.some(x => x.id === quickStudent.id), 'Teacher can discover new local student');
-result = await call('/workspaces/teacher/listings/' + quickStudent.id + '/interest', { method: 'PUT' });
-assert.equal(result.status, 200, 'Teacher can send interest to new local student');
+assert.equal(result.status, 403, 'Teacher has no student Explore or map');
+result = await call('/workspaces/teacher/listings/' + quickStudent.id + '/save', { method: 'PUT', body: { saved: true } });
+assert.equal(result.status, 403, 'Teacher cannot save or browse student listing');
 
 switched = await switchBrowserDemoAccount(quickStudent.id);
 assert.equal(switched.id, quickStudent.id);
-result = await call('/workspaces/student/connections');
-assert.ok(result.data.some(x => x.listing.id === teacherAccount.id && x.status === 'incoming'), 'Student receives the interest');
-result = await call('/workspaces/student/listings/' + teacherAccount.id + '/interest', { method: 'PUT' });
-assert.equal(result.data.status, 'matched', 'Student matches the tutor back');
+const newBooking = await call('/workspaces/student/bookings', { method: 'POST',
+  body: { teacherId: teacherAccount.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60,
+    note: 'I would like to study algebra.' },
+});
+assert.equal(newBooking.status, 201, 'Student requests a class without teacher interest');
+assert.equal(newBooking.data.status, 'pending');
+result = await call('/workspaces/student/connections/' + teacherAccount.id + '/messages');
+assert.equal(result.status, 403, 'Student cannot message before tutor accepts');
+await switchBrowserDemoAccount(teacherAccount.id);
+result = await call('/workspaces/teacher/bookings/' + newBooking.data.id, {
+  method: 'PUT', body: { decision: 'accept' },
+});
+assert.equal(result.status, 200, 'Tutor accepts the class');
+assert.equal(result.data.status, 'accepted');
+await switchBrowserDemoAccount(quickStudent.id);
 result = await call('/workspaces/student/connections/' + teacherAccount.id + '/messages', {
   method: 'POST',
   body: { id: crypto.randomUUID(), body: 'Can we schedule our maths class?' },
 });
-assert.equal(result.status, 201, 'Student can send a real matching conversation message');
+assert.equal(result.status, 201, 'Student can message after approved booking');
 
 await switchBrowserDemoAccount(teacherAccount.id);
 result = await call('/workspaces/teacher/connections/' + quickStudent.id + '/messages');
@@ -243,7 +265,7 @@ result = await call(teacherRoom + '/sessions', {
     durationMinutes: 60,
   },
 });
-assert.equal(result.status, 201, 'Tutor can schedule a class for new match');
+assert.equal(result.status, 201, 'Tutor can schedule additional classes for accepted booking');
 result = await call(teacherRoom + '/notes', {
   method: 'POST', body: { title: 'Welcome notes', content: 'Bring your latest maths homework.' },
 });
@@ -258,7 +280,7 @@ assert.equal(result.status, 201, 'Tutor can assign homework');
 const homeworkId = result.data.id;
 await switchBrowserDemoAccount(quickStudent.id);
 result = await call(studentRoom);
-assert.equal(result.data.sessions.length, 1, 'Student sees scheduled class');
+assert.equal(result.data.sessions.length, 2, 'Student sees accepted first booking and additional scheduled class');
 assert.equal(result.data.notes.length, 1, 'Student sees shared notes');
 result = await call(studentRoom + '/homework/' + homeworkId + '/submit', {
   method: 'PUT', body: { submission: 'I finished exercises 1 to 5.' },
@@ -310,5 +332,5 @@ assert.equal(data.size, 0, 'Reset removes only browser-demo keys in an otherwise
 result = await call('/auth/me');
 assert.equal(result.status, 401, 'Reset re-seeds without an active session');
 
-console.log('Browser-local demo verified: 50 added demo profiles, 5-month histories, persistent migration, signup, switching, bidirectional chat, classes, homework, admin, isolation and reset.');
+console.log('Browser demo verified: booking migration, teacher privacy, requests, approvals, chats, classrooms, 50 new profiles, five-month history, roles and homework.');
 console.log('API calls exercised: ' + assertions);
