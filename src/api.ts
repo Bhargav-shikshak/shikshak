@@ -229,8 +229,10 @@ export const api = {
 
   admin: (signal?: AbortSignal) => request<AdminSnapshot>('/admin', { signal }),
   setPricing: (data: PriceSettings) => request<PriceSettings>('/admin/pricing', { method: 'PUT', body: data }),
-  adminAction: (userId: string, action: 'approve' | 'reject' | 'suspend' | 'activate' | 'hide') => {
-    const suffix = action === 'approve' || action === 'reject' ? 'rate' : action === 'hide' ? 'listing' : 'status';
+  adminAction: (userId: string, action: 'verify' | 'unverify' | 'suspend' | 'activate' | 'hide') => {
+    const suffix = action === 'verify' || action === 'unverify' ? 'verification' : action === 'hide' ? 'listing' : 'status';
     return request<PublicAccount>('/admin/accounts/' + encodeURIComponent(userId) + '/' + suffix, { method: 'PUT', body: { action } });
   },
+  staffRole: (userId: string, action: 'make-admin' | 'make-owner' | 'revoke-staff') =>
+    request<PublicAccount>('/admin/accounts/' + encodeURIComponent(userId) + '/role', { method: 'PUT', body: { action } }),
 };
