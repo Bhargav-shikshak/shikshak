@@ -1,8 +1,26 @@
 export type Role = 'student' | 'teacher';
+export type AccountRole = Role | 'admin';
 export type ConnectionStatus = 'incoming' | 'sent' | 'matched';
 export interface Point { lat: number; lng: number }
 export interface Locality extends Point { id: string; name: string }
 export interface Workspace { id: string; role: Role; name: string; initials: string }
+export interface PublicAccount {
+  id: string;
+  email: string;
+  name: string;
+  role: AccountRole;
+  localityId: string;
+  bio: string;
+  strongSubjects: string[];
+  weakSubjects: string[];
+  qualifications: string;
+  experience: string;
+  requestedRate: number | null;
+  approvedRate: number | null;
+  rateStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  active: boolean;
+  createdAt: string;
+}
 export interface ListingDraft {
   name: string;
   headline: string;
@@ -21,11 +39,18 @@ export interface Listing extends ListingDraft {
   color: string;
   locality: string;
   location: Point;
+  strongSubjects?: string[];
+  weakSubjects?: string[];
+  qualifications?: string;
+  experience?: string;
+  fictional?: boolean;
 }
 export interface DiscoveryListing extends Listing {
   distance: number;
   saved: boolean;
   connection: ConnectionStatus | null;
+  baseRate?: number;
+  travelFee?: number;
 }
 export interface Catalog {
   city: string;
@@ -50,4 +75,54 @@ export interface Filters {
 export interface Discovery { listings: DiscoveryListing[]; origin: Point; total: number }
 export interface Connection { listing: Listing; status: ConnectionStatus }
 export interface Message { id: string; authorId: string; body: string; sentAt: string }
+export interface PriceSettings {
+  baseRate: number;
+  freeRadiusKm: number;
+  distanceStepKm: number;
+  stepFee: number;
+  maxTravelFee: number;
+}
+export interface ClassSession {
+  id: string;
+  title: string;
+  startsAt: string;
+  durationMinutes: number;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+export interface LessonNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+export interface Homework {
+  id: string;
+  title: string;
+  instructions: string;
+  dueAt: string;
+  createdAt: string;
+  submission: string;
+  submittedAt: string | null;
+  review: string;
+  reviewedAt: string | null;
+}
+export interface Classroom {
+  studentId: string;
+  teacherId: string;
+  sessions: ClassSession[];
+  notes: LessonNote[];
+  homework: Homework[];
+}
+export interface ClassroomSummary {
+  partner: Listing;
+  classroom: Classroom;
+}
+export interface AdminSnapshot {
+  accounts: PublicAccount[];
+  settings: PriceSettings;
+  publishedListings: number;
+  matchedPairs: number;
+  pendingRates: number;
+}
 export const defaultFilters: Filters = { query: '', subject: '', grade: '', locality: '', radius: '', maxRate: '', sort: 'distance', saved: false };
