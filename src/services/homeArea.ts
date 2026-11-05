@@ -69,14 +69,17 @@ export function approximateHomePoint(point: Point): Point {
 export async function reverseHomeArea(point: Point): Promise<Partial<HomeArea>> {
   if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng) ||
       Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180) throw new Error('Invalid map position.');
+  // Reverse-geocode the precise *selected* point, not the approximate public
+  // point. Rounding first could describe a different street or neighbourhood.
+  // Only the rounded result is returned for account persistence.
   const coarse = approximateHomePoint(point);
-  const key = coarse.lat.toFixed(2) + ',' + coarse.lng.toFixed(2);
+  const key = point.lat.toFixed(5) + ',' + point.lng.toFixed(5);
   const existing = cache.get(key);
   if (existing) return existing;
   let p = { city: '', locality: '', county: '' };
   try {
     const result = await paced(() => fetchJson(mapConfig.geocoderBaseUrl + '/reverse?' +
-      new URLSearchParams({ lat: coarse.lat.toFixed(5), lon: coarse.lng.toFixed(5), limit: '8' })));
+      new URLSearchParams({ lat: point.lat.toFixed(5), lon: point.lng.toFixed(5), limit: '8' })));
     const features = (result as { features?: Feature[] })?.features;
     p = photon(Array.isArray(features) ? features : []);
   } catch { /* Try the CivicWatch fallback. */ }
