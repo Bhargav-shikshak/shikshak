@@ -45,7 +45,7 @@ function Conversation({ listing, catalog, role, currentUserId, close }: { listin
     <div className="detail-identity"><Avatar listing={listing}/><div><p className="eyebrow">MUTUAL MATCH</p><h2>{listing.name}</h2></div></div>
     <div className="message-list" ref={messageList} aria-live="polite">
       {error ? <ErrorNotice message={error} retry={refresh}/> : !data ? <p>Loading conversation…</p> : data.length === 0
-        ? <div className="chat-empty"><MessageCircle size={24}/><p>Say hello and ask about subjects, timing, or how a first lesson could work.</p>{listing.fictional && <small>This fictional profile won’t send replies.</small>}</div>
+        ? <div className="chat-empty"><MessageCircle size={24}/><p>Say hello and ask about subjects, timing, or how a first lesson could work.</p></div>
         : data.map((message) => <div className={'message' + (message.authorId === currentUser ? ' mine' : '')} key={message.authorId + ':' + message.id}>
           <p>{message.body}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</time>
         </div>)}
@@ -97,7 +97,7 @@ export function Matches({ catalog, role, currentUserId, chatId, clearChat, openC
             : <button type="button" className="secondary-button" onClick={() => { setDetail(connection); setActionError(''); }}>{connection.status === 'incoming' ? 'Review interest' : 'View profile'} <ArrowRight size={16}/></button>}
         </article>)}</div>
       </section>
-      <aside className="workspace-aside"><span className="aside-icon"><Sparkles size={22}/></span><h2>How matching works</h2><ol><li><Heart size={16}/><span>Send interest to a tutor or learner you’d like to meet.</span></li><li><Users size={16}/><span>When they express interest too, you match.</span></li><li><MessageCircle size={16}/><span>Open your shared classroom to schedule lessons, exchange notes and review homework.</span></li></ol>{catalog.demo && <p className="aside-note">Fictional preview profiles cannot match. Create another account to test two-sided matching.</p>}</aside>
+      <aside className="workspace-aside"><span className="aside-icon"><Sparkles size={22}/></span><h2>How matching works</h2><ol><li><Heart size={16}/><span>Send interest to a tutor or learner you’d like to meet.</span></li><li><Users size={16}/><span>When they express interest too, you match.</span></li><li><MessageCircle size={16}/><span>Open your shared classroom to schedule lessons, exchange notes and review homework.</span></li></ol>{catalog.demo && <p className="aside-note">Every demo profile is switchable. Try matching with a sample tutor or student, then switch accounts to reply.</p>}</aside>
     </div>
     {detail && <Modal title={detail.listing.name} onClose={() => { setDetail(null); setActionError(''); }}><ListingDetails listing={detail.listing} status={detail.status} busy={busy} onInterest={() => void match(detail)} onChat={() => { setDetail(null); openChat(detail.listing.id); }}/>{actionError && <ErrorNotice message={actionError}/>}</Modal>}
     {chat && <Conversation listing={chat.listing} catalog={catalog} role={role} currentUserId={currentUserId} close={clearChat}/>}
