@@ -149,6 +149,8 @@ async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
     const account = state.accounts[created.id];
     delete state.accounts[created.id];
     account.id = listing.id;
+    // Fictional fixture tutors are pre-reviewed for local demo activities only.
+    if (listing.role === 'teacher') account.teacherVerified = true;
     state.accounts[listing.id] = account;
     const token = sessionFor(state, created);
     state.sessions[token].userId = listing.id;
@@ -205,6 +207,7 @@ async function ensureDemoHistory(state: DemoState): Promise<boolean> {
     const account = state.accounts[created.id];
     delete state.accounts[created.id];
     account.id = sample.id;
+    if (sample.role === 'teacher') account.teacherVerified = true;
     // Account age varies from early summer through autumn.
     account.createdAt = new Date(Date.now() - (45 + (index * 17) % 110) * 86400000).toISOString();
     state.accounts[sample.id] = account;
@@ -300,6 +303,7 @@ async function seedBrowserDemo(): Promise<DemoState> {
       name: sample.name, email: sample.email, password: DEMO_PASSWORD,
       localityId: sample.localityId, role: sample.role,
     }) as PublicAccount;
+    if (sample.role === 'teacher') state.accounts[account.id].teacherVerified = true;
     const token = sessionFor(state, account);
     members.push({ account, token, role: sample.role });
 
@@ -555,6 +559,8 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
       name, email, role: input.role, localityId: locality.id, password: DEMO_PASSWORD,
       ...(input.homeArea ? { homeArea: input.homeArea } : {}),
     }) as PublicAccount;
+    // Quick-created fictional test tutors stay discoverable without a manual admin step.
+    if (input.role === 'teacher') state.accounts[account.id].teacherVerified = true;
     const token = sessionFor(state, account);
     await checked(state, '/profile', 'PUT', {
       name,
