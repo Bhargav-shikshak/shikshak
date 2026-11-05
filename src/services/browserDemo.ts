@@ -429,7 +429,7 @@ export interface QuickDemoAccountInput {
   role: Role;
   localityId: string;
   homeArea?: HomeArea;
-  subject:
+  subject: string;
   grade: string;
 }
 
