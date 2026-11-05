@@ -1,0 +1,31 @@
+name: Retire design experiment branches (one-time)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/retire-design-experiments.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  remove-obsolete-design-branches:
+    if: github.repository == 'Bhargav-shikshak/shikshak'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove only the two obsolete design branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for ref in design-changes dev/designlab; do
+            echo "Removing design-only branch: $ref"
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$ref" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$ref"
+            else
+              echo "Already absent: $ref"
+            fi
+          done
+          echo "Preserved main and fix/openstreetmap-basemap."
