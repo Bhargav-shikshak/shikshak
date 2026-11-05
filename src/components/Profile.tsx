@@ -76,7 +76,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
 
   return <main id="main" className="workspace-page">
     <div className="workspace-heading"><p className="eyebrow hero-eyebrow"><span/> YOUR SHIKSHAK IDENTITY</p>
-      <h1>My profile.</h1><p>Manage what your future {isTeacher ? 'students' : 'tutors'} know about you.</p></div>
+      <h1>My profile.</h1><p>Manage your account and learning preferences. Students do not appear in teachers’ discovery.</p></div>
     <div className="profile-layout">
       <section className="workspace-panel">
         <div className="profile-identity"><div className="profile-monogram">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</div><div><h2>{account.name}</h2><p>{isTeacher ? 'Teacher' : 'Student'} · {account.email}</p></div></div>
