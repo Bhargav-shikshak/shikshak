@@ -45,7 +45,7 @@ export function Admin() {
     {data && <div className="admin-stats">
       <div><Users size={19}/><strong>{data.accounts.filter(x => x.role !== 'admin').length}</strong><span>Members</span></div>
       <div><ShieldCheck size={19}/><strong>{data.publishedListings}</strong><span>Published listings</span></div>
-      <div><BarChart3 size={19}/><strong>{data.matchedPairs}</strong><span>Mutual matches</span></div>
+      <div><BarChart3 size={19}/><strong>{data.matchedPairs}</strong><span>Accepted bookings</span></div>
       <div><ShieldAlert size={19}/><strong>{data.pendingRates}</strong><span>Rates to review</span></div>
     </div>}
     <div className="admin-columns">
