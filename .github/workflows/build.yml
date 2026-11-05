@@ -2,7 +2,7 @@ name: Shikshak build
 
 on:
   push:
-    branches: [main, dev/backend-test]
+    branches: [main, dev/backend-test, dev/pricing-verification-roles]
   pull_request:
     branches: [main]
 
