@@ -1,7 +1,7 @@
 import type {
   AdminSnapshot, ClassSession, Classroom, ClassroomSummary, Connection, ConnectionStatus,
   DiscoveryListing, Homework, LessonNote, Listing, ListingDraft, Message, Point,
-  PriceSettings, PublicAccount, Role,
+  PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
 import { catalog } from './seed';
 
@@ -29,7 +29,7 @@ export function initialState(): DemoState {
 }
 // Trusted in-process override used only by the browser-local demo adapter.
 // The deployed HTTP worker never derives this value from client request headers.
-type Options = { adminBootstrapToken?: string; browserSessionToken?: string };
+type Options = { adminBootstrapToken?: string; browserSessionToken?: string; browserPdfDemo?: boolean };
 const opposite = (role: Role): Role => role === 'student' ? 'teacher' : 'student';
 const json = (body: unknown, status = 200, headers?: HeadersInit): Response =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -434,8 +434,24 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       if (resourceId === 'notes') {
         const title = cleanText(data?.title, 100);
         const content = cleanText(data?.content, 8000);
-        if (!title || !content) return fail('Add a title and note content.');
-        const note: LessonNote = { id: id(), title, content, createdAt: new Date().toISOString() };
+        let pdf: PdfNoteAttachment | undefined;
+        if (data?.pdf !== undefined) {
+          // Never accept a blob identifier from a remote client in API mode.
+          // The browser demo stores the actual bytes in same-origin IndexedDB.
+          if (!opts.browserPdfDemo) return fail('PDF notes require an integrated file storage service.', 501);
+          if (!data.pdf || typeof data.pdf !== 'object') return fail('Invalid PDF metadata.');
+          const raw = data.pdf as Record<string, unknown>;
+          const pdfId = cleanText(raw.id, 40);
+          const name = cleanText(raw.name, 140);
+          const sizeBytes = Number(raw.sizeBytes);
+          if (!/^[a-f0-9-]{36}$/i.test(pdfId) || !name.toLowerCase().endsWith('.pdf') ||
+              !Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 10 * 1024 * 1024 ||
+              raw.mimeType !== 'application/pdf')
+            return fail('Choose a valid PDF document under 10 MB.');
+          pdf = { id: pdfId, name, sizeBytes, mimeType: 'application/pdf' };
+        }
+        if (!title || (!content && !pdf)) return fail('Add a title and note content or PDF.');
+        const note: LessonNote = { id: id(), title, content, createdAt: new Date().toISOString(), ...(pdf ? { pdf } : {}) };
         room.notes.push(note);
         return json(note, 201);
       }
