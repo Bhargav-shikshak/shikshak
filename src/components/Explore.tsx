@@ -109,7 +109,7 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
         {listings.map((item) => <ListingCard key={item.id} item={item} selected={active?.id === item.id} busy={busy !== null} onOpen={() => open(item)} onSave={() => void save(item)}/>)}
         {data && !listings.length && <div className="empty-state"><Search size={24}/><h3>{filters.saved ? 'No saved listings here' : 'No matching listings'}</h3><p>{filters.saved ? 'Use the heart on a profile card to save it for later.' : 'Try another subject or widen your search area.'}</p>{hasFilters && <button type="button" className="secondary-button" onClick={() => setFilters(defaultFilters)}>Clear filters</button>}</div>}
       </div>
-      <p className="explore-foot">{catalog.demo ? 'Shikshak pilot · Fictional profiles are marked' : 'Shikshak'}<span>Map pins are approximate. Your exact address stays private.</span></p>
+      <p className="explore-foot">{catalog.demo ? 'Shikshak pilot · Demo profiles are interactive' : 'Shikshak'}<span>Map pins are approximate. Your exact address stays private.</span></p>
     </section>
     <DiscoveryMap catalog={catalog} listings={listings} origin={data?.origin} active={active} onSelect={select} onOpen={open} mobileVisible={mobileMap}/>
     {currentDetail && <Modal title={currentDetail.name} onClose={() => { setDetail(null); setMutationError(''); }}>
