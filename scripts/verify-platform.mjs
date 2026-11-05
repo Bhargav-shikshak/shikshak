@@ -166,7 +166,7 @@ ok(result.data.some(x => x.id === requested.data.id), 'Tutor sees student reques
 ok(!JSON.stringify(result.data).includes('rajgarh') && !JSON.stringify(result.data).includes('26.'),
   'Tutor booking response contains no student location coordinates');
 result = await call('workspaces/teacher/connections/' + student.data.id + '/classroom', { cookie: teacher.cookie });
-equal(result.status, 403, 'No classroom access before teacher approval');
+equal(result.status, 404, 'Tutor cannot enumerate or enter a classroom before approving the booking');
 result = await call('workspaces/student/bookings', { method: 'POST', cookie: student.cookie,
   body: {
     teacherId: teacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
