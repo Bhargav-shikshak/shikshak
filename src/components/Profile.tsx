@@ -3,7 +3,7 @@ import { BookOpen, GraduationCap, MapPin, ShieldCheck, UserRound } from 'lucide-
 import type { Catalog, PublicAccount, Role } from '../../shared/domain';
 import { useResource } from '../useResource';
 import { api, type ProfileInput } from '../api';
-import { ErrorNotice, money } from './Common';
+import { ErrorNotice } from './Common';
 import { HomeAreaPicker } from './HomeAreaPicker';
 
 export function Profile({ catalog, account, onUpdated, openListing, openClassroom }: {
@@ -28,7 +28,6 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
     strongSubjects: account.strongSubjects, weakSubjects: account.weakSubjects,
     qualifications: account.qualifications, experience: account.experience,
   });
-  const [price, setPrice] = useState(String(account.requestedRate ?? account.approvedRate ?? 500));
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -62,24 +61,13 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
     catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   }
-  async function requestPrice() {
-    setBusy(true);
-    setError('');
-    setStatus('');
-    try {
-      const result = await api.requestRate(Number(price));
-      onUpdated(result);
-      setStatus('Your requested rate was sent for admin review. Your current approved/platform rate remains in effect.');
-    } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
-  }
 
   return <main id="main" className="workspace-page">
     <div className="workspace-heading"><p className="eyebrow hero-eyebrow"><span/> YOUR SHIKSHAK IDENTITY</p>
       <h1>My profile.</h1><p>Manage your account and learning preferences. Students do not appear in teachers’ discovery.</p></div>
     <div className="profile-layout">
       <section className="workspace-panel">
-        <div className="profile-identity"><div className="profile-monogram">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</div><div><h2>{account.name}</h2><p>{isTeacher ? 'Teacher' : 'Student'} · {account.email}</p></div></div>
+        <div className="profile-identity"><div className="profile-monogram">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</div><div><h2>{account.name}</h2><p>{isTeacher ? (account.teacherVerified ? 'Verified teacher' : 'Teacher · verification pending') : 'Student'} · {account.email}</p></div></div>
         <form className="editor-form" onSubmit={save}>
           <label>Display name<input required maxLength={60} value={draft.name} onChange={event => setDraft(v => ({ ...v, name: event.target.value }))}/></label>
           <div className="home-area-group">
@@ -141,13 +129,11 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
         </section>
         <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {savedArea}</p><p>Your dashboard shows classes and tasks after a teacher accepts a booking.</p></section>
         {isTeacher && <section className="workspace-aside">
-          <span className="aside-icon"><GraduationCap size={22}/></span><h2>Hourly teaching rate</h2>
-          <p>Platform pricing applies by default, with a distance-based travel supplement for students.</p>
-          <p><strong>Approved base:</strong> {account.approvedRate === null ? 'Platform rate' : money(account.approvedRate) + ' / hr'}</p>
-          <p><strong>Request status:</strong> {account.rateStatus === 'none' ? 'No request' : account.rateStatus}</p>
-          <label className="rate-request">Propose your own base rate (₹/hr)<input type="number" min={100} max={10000} step={1} value={price} onChange={event => setPrice(event.target.value)}/></label>
-          <button type="button" disabled={busy} className="secondary-button" onClick={() => void requestPrice()}>Request admin approval</button>
-          <p className="aside-note"><ShieldCheck size={14}/> Requested rates do not become public until approved by an administrator.</p>
+          <span className="aside-icon"><GraduationCap size={22}/></span><h2>Teacher verification and rates</h2>
+          <p><strong>Verification:</strong> {account.teacherVerified ? 'Verified by Shikshak' : 'Awaiting administrator review'}</p>
+          <p>You set your own hourly price in <strong>My listing</strong>. Distance is included in the student's final quoted rate.</p>
+          <button type="button" className="secondary-button" onClick={openListing}>Edit teaching rate and listing</button>
+          <p className="aside-note"><ShieldCheck size={14}/> A verification badge appears after an administrator confirms your teacher account.</p>
         </section>}
         {!isTeacher && <section className="workspace-aside"><span className="aside-icon"><BookOpen size={22}/></span><h2>Learning at your pace</h2><p>Your learning strengths and support needs stay private. Tutors only receive the lesson details you include when requesting a class.</p></section>}
       </aside>
