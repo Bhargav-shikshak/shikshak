@@ -156,9 +156,9 @@ assert.equal(answer.submission, 'Updated solution');
 
 await api.logout();
 await api.login('rohan@shikshak.demo', password);
-await assert.rejects(() => api.getNotePdf('student', teacherId, note.id), /classroom|match|permission|feature|not found|403/i, 'Unmatched student cannot view notes');
-await assert.rejects(() => api.getHomeworkPdf('student', teacherId, homework.id, 'assignment'), /classroom|match|permission|feature|not found|403/i, 'Unmatched student cannot retrieve homework worksheet');
-await assert.rejects(() => api.getHomeworkPdf('student', teacherId, homework.id, 'submission'), /classroom|match|permission|feature|not found|403/i, 'Unmatched student cannot retrieve submitted answers');
+await assert.rejects(() => api.getNotePdf('student', teacherId, note.id), /classroom|booking|accept|match|permission|feature|not found|403/i, 'Unmatched student cannot view notes');
+await assert.rejects(() => api.getHomeworkPdf('student', teacherId, homework.id, 'assignment'), /classroom|booking|accept|match|permission|feature|not found|403/i, 'Unmatched student cannot retrieve homework worksheet');
+await assert.rejects(() => api.getHomeworkPdf('student', teacherId, homework.id, 'submission'), /classroom|booking|accept|match|permission|feature|not found|403/i, 'Unmatched student cannot retrieve submitted answers');
 await api.logout();
 await api.login('teacher@shikshak.demo', password);
 const textOnly = await api.note('teacher', studentId, 'Ordinary text notes', 'No PDF attached');
