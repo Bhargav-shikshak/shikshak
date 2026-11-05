@@ -2,6 +2,11 @@ export type Role = 'student' | 'teacher';
 export type AccountRole = Role | 'admin';
 export type ConnectionStatus = 'incoming' | 'sent' | 'matched';
 export interface Point { lat: number; lng: number }
+/** Only a coarse neighbourhood-level point is kept. Never store household coordinates. */
+export interface HomeArea extends Point {
+  city: string;
+  locality: string;
+}
 export interface Locality extends Point { id: string; name: string }
 export interface Workspace { id: string; role: Role; name: string; initials: string }
 export interface PublicAccount {
@@ -10,6 +15,8 @@ export interface PublicAccount {
   name: string;
   role: AccountRole;
   localityId: string;
+  homeArea?: HomeArea;
+  homeChangedAt?: string | null;
   bio: string;
   strongSubjects: string[];
   weakSubjects: string[];
