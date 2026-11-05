@@ -1,0 +1,197 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+
+// Bundle the same API modules used by Cloudflare and the local preview.
+// This test uses no external service, browser or hardcoded administrator account.
+const bundle = await build({
+  entryPoints: ['demo/api.ts'],
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node24',
+  write: false,
+  logLevel: 'silent',
+});
+const moduleUrl = 'data:text/javascript;base64,' +
+  Buffer.from(bundle.outputFiles[0].contents).toString('base64');
+const { demoApi, initialState } = await import(moduleUrl);
+const state = initialState();
+const adminBootstrapToken = 'test-only-setup-token-very-long-and-random';
+let assertions = 0;
+const ok = (condition, message) => { assert.ok(condition, message); assertions++; };
+const equal = (actual, expected, message) => { assert.equal(actual, expected, message); assertions++; };
+async function call(path, { method = 'GET', body, cookie = '' } = {}) {
+  const req = new Request('https://shikshak.example.test/api/v1/' + path, {
+    method,
+    headers: {
+      ...(cookie ? { Cookie: cookie } : {}),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      Origin: 'https://shikshak.example.test',
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const response = await demoApi(req, state, { adminBootstrapToken });
+  return {
+    status: response.status,
+    data: await response.json(),
+    cookie: response.headers.get('set-cookie')?.split(';')[0] ?? '',
+  };
+}
+function member(name, email, password, role, localityId) {
+  return { name, email, password, role, localityId };
+}
+const teacher = await call('auth/signup', { method: 'POST',
+  body: member('Tutor One', 'tutor@example.test', 'long-unique-password-111', 'teacher', 'chandmari') });
+equal(teacher.status, 201, 'Teacher registration succeeds');
+equal(teacher.data.role, 'teacher');
+ok(teacher.cookie.startsWith('shikshak_auth='), 'Teacher receives an HttpOnly session cookie');
+
+const student = await call('auth/signup', { method: 'POST',
+  body: member('Student One', 'student@example.test', 'long-unique-password-222', 'student', 'rajgarh') });
+equal(student.status, 201, 'Student registration succeeds');
+equal(student.data.role, 'student');
+ok(student.data.id !== teacher.data.id, 'Accounts have different identities');
+
+let result = await call('auth/signup', { method: 'POST', body: member('Duplicate', 'tutor@example.test', 'another-password-333', 'teacher', 'rajgarh') });
+equal(result.status, 409, 'Duplicate email is rejected');
+result = await call('auth/signup', { method: 'POST', body: member('Illegal Admin', 'new@example.test', 'another-password-333', 'admin', 'rajgarh') });
+equal(result.status, 400, 'Public admin registration is prohibited');
+result = await call('workspaces/student/discovery', { cookie: teacher.cookie });
+equal(result.status, 403, 'Teacher cannot use student API by changing a route');
+
+const draft = (name, headline, localityId, rate) => ({
+  name, headline, localityId, subjects: ['Mathematics'], grades: ['Classes 9–10'],
+  rate, availability: 'Weekday evenings', description: 'Personalized help and guided practice.',
+  published: true,
+});
+result = await call('workspaces/teacher/listing', {
+  method: 'PUT', cookie: teacher.cookie,
+  body: draft('Tutor One', 'Math tutoring', 'chandmari', 9999),
+});
+equal(result.status, 200, 'Tutor listing published');
+equal(result.data.rate, 400, 'Teacher cannot set own unapproved price through listing API');
+
+result = await call('workspaces/student/listing', {
+  method: 'PUT', cookie: student.cookie,
+  body: draft('Student One', 'Need Maths tutor', 'rajgarh', 700),
+});
+equal(result.status, 200, 'Student listing published');
+
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+equal(result.status, 200, 'Student can discover tutors');
+const foundTeacher = result.data.listings.find(x => x.id === teacher.data.id);
+ok(foundTeacher, 'Registered tutor appears in student discovery');
+ok(foundTeacher.rate >= 400, 'Student sees platform distance-based rate');
+equal(foundTeacher.baseRate, 400, 'Price quote uses platform base');
+equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
+ok(result.data.listings.some(x => x.fictional), 'Demo previews are still labelled as fictional');
+
+const preview = result.data.listings.find(x => x.fictional);
+result = await call('workspaces/student/listings/' + preview.id + '/interest', { method: 'PUT', cookie: student.cookie });
+equal(result.status, 409, 'Cannot match a fictional preview profile');
+
+result = await call('profile', { method: 'PUT', cookie: student.cookie,
+  body: { name: 'Student One', localityId: 'rajgarh', bio: 'Preparing for exams',
+    strongSubjects: ['English'], weakSubjects: ['Mathematics'], qualifications: '', experience: '' } });
+equal(result.status, 200, 'Student can update profile');
+equal(result.data.weakSubjects[0], 'Mathematics', 'Weak subject is saved');
+result = await call('workspaces/teacher/discovery', { cookie: teacher.cookie });
+const foundStudent = result.data.listings.find(x => x.id === student.data.id);
+ok(foundStudent && foundStudent.strongSubjects.includes('English'), 'Tutor can see student strengths');
+ok(foundStudent && foundStudent.weakSubjects.includes('Mathematics'), 'Tutor can see student support needs');
+
+result = await call('profile/request-rate', { method: 'POST', cookie: teacher.cookie, body: { rate: 850 } });
+equal(result.status, 200, 'Teacher submits price request');
+equal(result.data.rateStatus, 'pending');
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+equal(result.data.listings.find(x => x.id === teacher.data.id).baseRate, 400, 'Pending rate not applied without approval');
+
+result = await call('admin/bootstrap', { method: 'POST',
+  body: { name: 'Platform Admin', email: 'admin@example.test',
+    password: 'long-admin-password-444', localityId: 'rajgarh', setupToken: 'wrong-key' } });
+equal(result.status, 403, 'Incorrect admin setup key rejected');
+
+const admin = await call('admin/bootstrap', { method: 'POST',
+  body: { name: 'Platform Admin', email: 'admin@example.test',
+    password: 'long-admin-password-444', localityId: 'rajgarh', setupToken: adminBootstrapToken } });
+equal(admin.status, 201, 'First admin can be securely bootstrapped');
+equal(admin.data.role, 'admin');
+result = await call('admin/bootstrap', { method: 'POST',
+  body: { name: 'Second Admin', email: 'admin2@example.test',
+    password: 'long-admin-password-555', localityId: 'rajgarh', setupToken: adminBootstrapToken } });
+equal(result.status, 409, 'Admin bootstrap only works once');
+result = await call('admin', { cookie: student.cookie });
+equal(result.status, 403, 'Students cannot access admin console');
+
+result = await call('admin', { cookie: admin.cookie });
+equal(result.status, 200, 'Admin console loads');
+equal(result.data.pendingRates, 1, 'Admin sees pending custom rates');
+result = await call('admin/accounts/' + teacher.data.id + '/rate', {
+  method: 'PUT', cookie: admin.cookie, body: { action: 'approve' } });
+equal(result.status, 200, 'Admin can approve teacher rate');
+equal(result.data.approvedRate, 850);
+
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+equal(result.data.listings.find(x => x.id === teacher.data.id).baseRate, 850, 'Approved teacher base rate used in student quote');
+
+result = await call('admin/pricing', { method: 'PUT', cookie: admin.cookie, body: {
+  baseRate: 500, freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
+} });
+equal(result.status, 200, 'Admin can update platform pricing');
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+const newQuote = result.data.listings.find(x => x.id === teacher.data.id);
+equal(newQuote.baseRate, 850, 'Approved custom teacher base survives policy update');
+ok(newQuote.travelFee >= 75, 'Updated travel policy applies');
+
+result = await call('workspaces/teacher/listings/' + student.data.id + '/interest', { method: 'PUT', cookie: teacher.cookie });
+equal(result.status, 200, 'Teacher can express interest');
+equal(result.data.status, 'sent');
+result = await call('workspaces/student/listings/' + teacher.data.id + '/interest', { method: 'PUT', cookie: student.cookie });
+equal(result.data.status, 'matched', 'Mutual interest creates match');
+result = await call('workspaces/student/connections', { cookie: student.cookie });
+ok(result.data.some(x => x.listing.id === teacher.data.id && x.status === 'matched'), 'Student can see match');
+
+const route = 'workspaces/teacher/connections/' + student.data.id + '/classroom';
+result = await call(route + '/sessions', { method: 'POST', cookie: teacher.cookie,
+  body: { title: 'Quadratic equations', startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60 } });
+equal(result.status, 201, 'Teacher schedules class');
+const classId = result.data.id;
+result = await call('workspaces/student/connections/' + teacher.data.id + '/classroom/sessions', { method: 'POST', cookie: student.cookie,
+  body: { title: 'Invalid student session', startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60 } });
+equal(result.status, 404, 'Student cannot schedule teacher-only classes');
+result = await call(route + '/notes', { method: 'POST', cookie: teacher.cookie,
+  body: { title: 'Algebra notes', content: 'Solve for roots using factoring.' } });
+equal(result.status, 201, 'Tutor posts notes');
+result = await call(route + '/homework', { method: 'POST', cookie: teacher.cookie,
+  body: { title: 'Practice questions', instructions: 'Solve exercises one to five.',
+    dueAt: new Date(Date.now() + 2 * 86400000).toISOString() } });
+equal(result.status, 201, 'Teacher assigns homework');
+const homeworkId = result.data.id;
+result = await call('workspaces/student/connections/' + teacher.data.id + '/classroom', { cookie: student.cookie });
+equal(result.status, 200, 'Student has access to matching classroom');
+equal(result.data.homework.length, 1, 'Student sees homework');
+result = await call('workspaces/student/connections/' + teacher.data.id + '/classroom/homework/' + homeworkId + '/submit', {
+  method: 'PUT', cookie: student.cookie, body: { submission: 'Completed steps one to five.' } });
+equal(result.status, 200, 'Student submits homework');
+result = await call(route + '/homework/' + homeworkId + '/review', {
+  method: 'PUT', cookie: teacher.cookie, body: { review: 'Good effort; review question three.' } });
+equal(result.status, 200, 'Tutor reviews homework');
+result = await call(route + '/sessions/' + classId + '/status', {
+  method: 'PUT', cookie: teacher.cookie, body: { status: 'completed' } });
+equal(result.status, 200, 'Tutor marks a class complete');
+
+result = await call('workspaces/student/classrooms', { cookie: student.cookie });
+ok(result.data.some(x => x.partner.id === teacher.data.id && x.classroom.homework[0].review), 'Student dashboard receives feedback');
+
+result = await call('admin/accounts/' + teacher.data.id + '/status', { method: 'PUT', cookie: admin.cookie, body: { action: 'suspend' } });
+equal(result.status, 200, 'Admin can suspend teacher');
+result = await call('auth/me', { cookie: teacher.cookie });
+equal(result.status, 401, 'Suspended account cannot access authenticated endpoints');
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+ok(!result.data.listings.some(x => x.id === teacher.data.id), 'Suspended tutor disappears from discovery');
+result = await call('auth/logout', { method: 'POST', cookie: student.cookie });
+equal(result.status, 200, 'Logout succeeds');
+result = await call('auth/me', { cookie: student.cookie });
+equal(result.status, 401, 'Logged-out session is invalid');
+
+console.log('Shikshak platform API checks passed (' + assertions + ' assertions).');
