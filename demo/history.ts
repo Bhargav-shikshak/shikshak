@@ -142,8 +142,6 @@ function iso(now: number, daysFromNow: number, hour = 16): string {
 const keyFor = (a: string, b: string) => [a, b].sort().join(':');
 const appendUnique = (items: string[] | undefined, item: string): string[] =>
   items?.includes(item) ? items : [...(items ?? []), item];
-const ageDays = (index: number, base: number, spread = 110): number =>
-  base + ((index * 19) % spread);
 
 function subjectOverlap(a: string[], b: string[]): number {
   return a.filter(subject => b.includes(subject)).length;
@@ -183,7 +181,7 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
         const diversity = (studentIndex * 7 + tutorListing.name.length) % 6;
         return { teacher, score: subject * 6 + grades * 5 + locality * 3 + diversity };
       })
-      .filter(result => result.score >= 7)
+      .filter(result => result.score >= 7 && subjectOverlap(state.own[result.teacher.id].grades, studentListing.grades) > 0)
       .sort((a, b) => b.score - a.score || a.teacher.id.localeCompare(b.teacher.id));
 
     const target = student.email === 'student@shikshak.demo' ? 4 : 1 + (studentIndex % 3);
@@ -234,9 +232,7 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
   let homeworkAdded = 0;
   for (const [pairIndex, [teacherId, studentId]] of pairs.entries()) {
     const key = keyFor(teacherId, studentId);
-    const teacher = state.accounts[teacherId];
-    const student = state.accounts[studentId];
-    const subjects = state.own[teacherId].subjects.filter(x => state.own[studentId].subjects.includes(x));
+        const subjects = state.own[teacherId].subjects.filter(x => state.own[studentId].subjects.includes(x));
     const subject = subjects[pairIndex % subjects.length] ?? state.own[teacherId].subjects[0];
     const [topic, help] = topicDetails[subject] ?? topicDetails.Mathematics;
     const room: Classroom = state.classrooms[key] ?? {
@@ -252,10 +248,10 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
       room.sessions.push({
         id,
         title: [topic + ' practice', subject + ' revision', 'Progress check-in', topic + ' exercises'][j % 4],
-        startsAt: iso(now, -(months - j * 20), 15 + (pairIndex % 4)),
+        startsAt: iso(now, -(months - j * 12), 15 + (pairIndex % 4)),
         durationMinutes: [45, 60, 75][(j + pairIndex) % 3],
         status: j % 9 === 3 ? 'cancelled' : 'completed',
-        createdAt: iso(now, -(months - j * 20 + 3), 11),
+        createdAt: iso(now, -(months - j * 12 + 3), 11),
       });
       sessionsAdded++;
     }
@@ -276,7 +272,7 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
       const note: LessonNote = {
         id, title: [topic + ' — revision sheet', subject + ' study checklist', 'Lesson recap: ' + topic][j % 3],
         content: help + '\n\nPractice plan: explain each step aloud, try two independent questions, and bring any doubts to the next class.',
-        createdAt: iso(now, -(months - j * 31), 18),
+        createdAt: iso(now, -(months - j * 16), 18),
       };
       room.notes.push(note); notesAdded++;
     }
@@ -320,7 +316,7 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
       const [authorId, body] = phrases[j];
       const message: Message = {
         id, authorId, body,
-        sentAt: iso(now, -(months - j * 15), 12 + (j % 7)),
+        sentAt: iso(now, -(months - j * 9), 12 + (j % 7)),
       };
       chat.push(message);
       messagesAdded++;
@@ -332,14 +328,12 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
       state.saves[studentId] = appendUnique(state.saves[studentId], teacherId);
       state.saves[teacherId] = appendUnique(state.saves[teacherId], studentId);
     }
-    void teacher;
-    void student;
   }
 
   // Pricing review queue has a mix of outcomes. Existing human demo edits,
   // including the default Meghna request, are left unchanged.
   for (const [index, account] of teachers.entries()) {
-    if (account.rateStatus !== 'none' || index % 5 === 4) continue;
+    if (account.rateStatus !== 'none' || index % 5 >= 3) continue;
     const rate = 450 + (index % 5) * 75;
     account.requestedRate = rate;
     if (index % 5 === 0) { account.rateStatus = 'pending'; }
