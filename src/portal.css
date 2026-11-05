@@ -334,3 +334,33 @@
   .demo-switcher-account { padding: 8px; }
   .demo-switcher-action { font-size: 10px; }
 }
+
+
+/* PDF lesson notes — same classroom visual system as written notes. */
+.classroom-file-picker {
+  display: grid; gap: 9px; border: 1px dashed #afa7c6; border-radius: 11px;
+  padding: 14px; background: #faf8fc; min-width: 0;
+}
+.classroom-file-picker label { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 750; }
+.classroom-file-picker input[type="file"] { width: 100%; max-width: 100%; font-size: 12px; color: var(--muted); }
+.classroom-file-picker input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 8px 11px; border: 1px solid #c9c1d8; border-radius: 7px;
+  background: white; color: #484066; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.classroom-file-picker small, .classroom-file-warning { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.classroom-selected-pdf { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-radius: 8px; background: #eee9f8; padding: 8px 9px; }
+.classroom-selected-pdf span { font-size: 11px; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+.classroom-selected-pdf button { flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center; border: none; border-radius: 7px; background: #fff; cursor: pointer; color: #615577; }
+.classroom-pdf-attachment { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px; border: 1px solid #dedbe9; border-radius: 12px; background: #f6f4fb; }
+.classroom-pdf-icon { flex: 0 0 39px; height: 43px; display: grid; place-items: center; border-radius: 9px; background: #e9e2f5; color: #57517c; }
+.classroom-pdf-info { display: grid; gap: 4px; min-width: 0; flex: 1 1 130px; }
+.classroom-pdf-info strong { font-size: 12px; font-weight: 750; overflow-wrap: anywhere; }
+.classroom-pdf-info small { color: #6a6876; font-size: 11px; }
+.classroom-pdf-info .classroom-pdf-error { color: #995044; line-height: 1.5; }
+.classroom-pdf-links { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.classroom-pdf-links a { font-size: 11px; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; }
+@media (max-width: 760px) {
+  .classroom-pdf-attachment { align-items: flex-start; }
+  .classroom-pdf-links { flex: 1 1 100%; }
+  .classroom-pdf-links a { flex: 1; }
+}
