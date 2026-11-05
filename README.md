@@ -1,6 +1,6 @@
-# Studylane
+# Shikshak
 
-Studylane is a map-first home tuition marketplace. Tutors and learners can publish neighbourhood-level listings, discover each other, save profiles, express interest and message after a mutual match. The first demo covers Guwahati, Assam.
+Shikshak is a map-first home tuition marketplace. Tutors and learners can publish neighbourhood-level listings, discover each other, save profiles, express interest and message after a mutual match. The first demo covers Guwahati, Assam.
 
 ## Run locally
 
@@ -22,7 +22,7 @@ npm run build
 npm run preview
 ```
 
-Run `npm run build:demo` to regenerate the standalone launcher bundle. The preview command serves the built frontend and the same demo API. The Leaflet basemap uses CARTO and OpenStreetMap and needs network access. Approximate listing pins remain available if tiles fail.
+Run `npm run build:demo` to regenerate the standalone launcher bundle. The preview command serves the built frontend and the same demo API. The Leaflet basemap uses OpenStreetMap tiles, with Photon-compatible place search, and needs network access. Tile and geocoder providers can be configured with Vite environment variables. Approximate listing pins remain available if tiles fail. Global map search changes the viewport, not the Guwahati-only demo listings.
 
 ## Try both sides
 
