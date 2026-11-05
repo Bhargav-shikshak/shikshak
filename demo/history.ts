@@ -172,6 +172,8 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
   for (const [studentIndex, student] of students.entries()) {
     const studentListing = state.own[student.id];
     const candidates = teachers
+      // Keep Aditi -> Rahul unpaired so the two-way matching tutorial remains demonstrable.
+      .filter(teacher => !(student.email === 'student@shikshak.demo' && teacher.id === 't-rahul'))
       .filter(teacher => subjectOverlap(state.own[teacher.id].subjects, studentListing.subjects) > 0)
       .map(teacher => {
         const tutorListing = state.own[teacher.id];
@@ -219,6 +221,7 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
     const candidate = teachers[(index * 5 + 3) % teachers.length];
     if (!candidate) continue;
     const pair = keyFor(student.id, candidate.id);
+    if (student.email === 'student@shikshak.demo' && candidate.id === 't-rahul') continue;
     if (pairIds.has(pair) || state.interests[student.id]?.includes(candidate.id) ||
         state.interests[candidate.id]?.includes(student.id)) continue;
     if (index % 2 === 0) state.interests[student.id] = appendUnique(state.interests[student.id], candidate.id);
