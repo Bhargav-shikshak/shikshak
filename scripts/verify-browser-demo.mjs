@@ -49,10 +49,21 @@ const studentId = result.data.id;
 const studentsTeachers = await call('/workspaces/student/discovery');
 assert.equal(studentsTeachers.status, 200);
 const teacher = studentsTeachers.data.listings.find(x => x.name === 'Arjun Bora');
-assert.ok(teacher, 'Real seeded tutor must appear alongside fictional previews');
+assert.ok(teacher, 'Seeded tutor appears as a regular account');
 assert.ok(teacher.rate >= 400, 'Server-grade rate policy is reused');
 assert.ok(teacher.connection === 'matched', 'Real demo tutor is pre-matched');
-assert.ok(studentsTeachers.data.listings.some(x => x.fictional), 'Fictional previews still appear');
+assert.ok(studentsTeachers.data.listings.every(x => !x.fictional), 'No unmatchable preview cards are injected');
+const rahul = studentsTeachers.data.listings.find(x => x.name === 'Rahul Kalita');
+assert.ok(rahul && rahul.id === 't-rahul', 'Legacy Rahul listing becomes a persistent account with stable ID');
+assert.ok(rahul.subjects.includes('Computer Science'), 'Fixture subject and listing details are retained');
+let rahulInterest = await call('/workspaces/student/listings/' + rahul.id + '/interest', { method: 'PUT' });
+assert.equal(rahulInterest.status, 200, 'Student can now send interest to former preview tutor');
+assert.equal(rahulInterest.data.status, 'sent');
+
+const previewAccounts = await listBrowserDemoAccounts();
+const rahulAccount = previewAccounts.find(x => x.id === 't-rahul');
+assert.ok(rahulAccount && rahulAccount.role === 'teacher' && rahulAccount.published, 'Rahul is switchable and has a live listing');
+assert.ok(previewAccounts.length >= 19, 'All original example tutors and students are persisted as accounts');
 
 const rooms = await call('/workspaces/student/classrooms');
 assert.equal(rooms.status, 200);
@@ -62,6 +73,27 @@ assert.equal(rooms.data[0].classroom.notes.length, 2, 'Sample notes exist');
 assert.equal(rooms.data[0].classroom.homework.length, 2, 'Sample homework exists');
 assert.ok(rooms.data[0].classroom.homework.some(x => x.submittedAt && !x.reviewedAt), 'Sample pending teacher review exists');
 
+// Reply from the formerly unmatchable sample account and exercise messaging.
+await switchBrowserDemoAccount(rahulAccount.id);
+let rahulDetails = await call('/workspaces/teacher/connections');
+assert.ok(rahulDetails.data.some(x => x.listing.id === studentId && x.status === 'incoming'), 'Former preview receives interest');
+let rahulMatch = await call('/workspaces/teacher/listings/' + studentId + '/interest', { method: 'PUT' });
+assert.equal(rahulMatch.data.status, 'matched', 'Former preview teacher can match back');
+const rahulMessage = await call('/workspaces/teacher/connections/' + studentId + '/messages', {
+  method: 'POST', body: { id: crypto.randomUUID(), body: 'I can help with coding and maths.' },
+});
+assert.equal(rahulMessage.status, 201, 'Former preview can send a message');
+await switchBrowserDemoAccount(studentId);
+const fromRahul = await call('/workspaces/student/connections/' + rahulAccount.id + '/messages');
+assert.ok(fromRahul.data.some(x => x.body.includes('coding and maths')), 'Student sees former preview teacher message');
+await switchBrowserDemoAccount(rahulAccount.id);
+const rahulClass = await call('/workspaces/teacher/connections/' + studentId + '/classroom/sessions', {
+  method: 'POST', body: { title: 'Python practice', startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60 },
+});
+assert.equal(rahulClass.status, 201, 'Former preview teacher can schedule a class');
+await switchBrowserDemoAccount(studentId);
+const studentRahulRoom = await call('/workspaces/student/connections/' + rahulAccount.id + '/classroom');
+assert.ok(studentRahulRoom.data.sessions.some(x => x.title === 'Python practice'), 'Student sees class from former preview');
 await call('/auth/logout', { method: 'POST' });
 result = await call('/auth/me');
 assert.equal(result.status, 401);
