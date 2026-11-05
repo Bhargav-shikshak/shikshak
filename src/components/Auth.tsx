@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, BookOpen, GraduationCap, LockKeyhole, ShieldCheck } from 'lucide-react';
 import type { Catalog, PublicAccount, Role } from '../../shared/domain';
-import { api } from '../api';
+import { api, isBrowserDemo } from '../api';
+import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 import { ErrorNotice } from './Common';
 
 export function Auth({ catalog, onSuccess, admin = false }: {
@@ -18,6 +19,23 @@ export function Auth({ catalog, onSuccess, admin = false }: {
   const [setupToken, setSetupToken] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  function useDemoAccount(kind: 'student' | 'teacher' | 'admin') {
+    const example = demoAccounts[kind];
+    setMode('login');
+    setEmail(example.email);
+    setPassword(DEMO_PASSWORD);
+    setError('');
+  }
+  async function resetDemo() {
+    if (!window.confirm('Reset all Shikshak demo accounts, matches, messages and classwork stored in this browser? This cannot be undone.')) return;
+    try {
+      const { resetBrowserDemo } = await import('../services/browserDemo');
+      resetBrowserDemo();
+      window.location.reload();
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -56,11 +74,26 @@ export function Auth({ catalog, onSuccess, admin = false }: {
     <section className="auth-panel" aria-label={admin ? 'Administrator authentication' : 'Account authentication'}>
       <h2>{mode === 'login' ? (admin ? 'Admin sign in' : 'Welcome back') : mode === 'bootstrap' ? 'Set up the first admin' : 'Create an account'}</h2>
       <p className="auth-subtext">{mode === 'login' ? 'Sign in with your registered email and password.' : 'Use your own details to get started.'}</p>
+      {isBrowserDemo && <div className="browser-demo-notice" role="note">
+        <strong>Browser demo mode</strong>
+        <span>Accounts, messages and classes are stored only in this browser. They do not sync with other devices. Use fictional details and a test password, not real student information.</span>
+      </div>}
+      {isBrowserDemo && <div className="demo-login-choices" aria-label="Try a sample account">
+        <p>Try a demo account <small>Shared test password: {DEMO_PASSWORD}</small></p>
+        <div className="demo-login-buttons">
+          {admin
+            ? <button type="button" onClick={() => useDemoAccount('admin')}>Use demo administrator</button>
+            : <>
+              <button type="button" onClick={() => useDemoAccount('student')}><BookOpen size={15}/> Use demo student</button>
+              <button type="button" onClick={() => useDemoAccount('teacher')}><GraduationCap size={15}/> Use demo teacher</button>
+            </>}
+        </div>
+      </div>}
       {!admin && <div className="auth-tabs">
         <button type="button" aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setError(''); }}>Log in</button>
         <button type="button" aria-pressed={mode === 'signup'} onClick={() => { setMode('signup'); setError(''); }}>Sign up</button>
       </div>}
-      {admin && <div className="auth-tabs">
+      {admin && !isBrowserDemo && <div className="auth-tabs">
         <button type="button" aria-pressed={mode === 'login'} onClick={() => { setMode('login'); setError(''); }}>Admin log in</button>
         <button type="button" aria-pressed={mode === 'bootstrap'} onClick={() => { setMode('bootstrap'); setError(''); }}>First-time setup</button>
       </div>}
@@ -78,7 +111,9 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Create administrator' : 'Create my account'}<ArrowRight size={17}/></button>
       </form>
       {mode === 'signup' && <p className="auth-footnote"><LockKeyhole size={15}/> Your role is tied to your account. You can edit your profile after signing up.</p>}
-      {admin && <p className="auth-footnote">The first administrator requires a server-configured setup key. No public admin account is provided.</p>}
+      {admin && !isBrowserDemo && <p className="auth-footnote">The first administrator requires a server-configured setup key. No public admin account is provided.</p>}
+      {admin && isBrowserDemo && <p className="auth-footnote">This is a local testing administrator, not a privileged production account.</p>}
+      {isBrowserDemo && <button type="button" className="reset-demo-button" onClick={() => void resetDemo()}>Reset local demo accounts and data</button>}
       <a className="auth-back" href={admin ? '#login' : '#admin'}>{admin ? 'Back to Shikshak' : 'Administrator access'}</a>
     </section>
   </main>;
