@@ -156,7 +156,7 @@ if p[2]='accounts' and array_length(p,1)=4 and method='PUT' then
    jsonb_typeof(input->'subjects') is distinct from 'array' or jsonb_typeof(input->'grades') is distinct from 'array' then perform shikshak_private.fail('Complete your listing title, subjects, class levels and description.'); end if;
    if jsonb_array_length(input->'subjects') not between 1 and 20 or jsonb_array_length(input->'grades') not between 1 and 20 then perform shikshak_private.fail('Choose subjects and class levels.'); end if;
    n=(input->>'rate')::numeric;
-   if n is null or n<>trunc(n) or n<case when me.role='teacher' then 100 else 50 end or n>10000 then perform shikshak_private.fail('Choose a valid hourly rate or budget.'); end if;
+   if n is null or n<>trunc(n) or n<(case when me.role='teacher' then 100 else 50 end) or n>10000 then perform shikshak_private.fail('Choose a valid hourly rate or budget.'); end if;
    j=jsonb_build_object('headline',shikshak_private.txt(input,'headline',90),'availability',shikshak_private.txt(input,'availability',100),
     'description',shikshak_private.txt(input,'description',700),'subjects',input->'subjects','grades',input->'grades','rate',n,'avatar',0,'color',case when me.role='teacher' then 'peach' else 'sage' end);
    insert into shikshak_private.listings values(uid,j,coalesce((input->>'published')::boolean,false))
