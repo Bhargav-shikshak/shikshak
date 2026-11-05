@@ -133,7 +133,7 @@ function App() {
 
   // Student and teacher sessions cannot enter the admin console.
   // Explicit sign-out is required before using a separate administrator identity.
-  if (isAdminRoute && session.role !== 'admin') return <main id="main" className="workspace-page admin-access-gate">
+  if (isAdminRoute) return <main id="main" className="workspace-page admin-access-gate">
     <a className="brand" href={link(session.role, 'home')} aria-label="Return to Shikshak"><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
     <div className="workspace-panel">
       <p className="eyebrow">RESTRICTED ACCESS</p><h1>Admin sign in.</h1>
