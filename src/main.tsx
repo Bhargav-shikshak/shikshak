@@ -102,14 +102,14 @@ function App() {
     setChatId(null);
     window.location.hash = account.role === 'admin' ? '#admin' : link(account.role, 'explore');
   }
-  async function logout() {
+  async function logout(toAdmin = false) {
     if (signingOut) return;
     setSigningOut(true);
     try {
       await api.logout();
       setSession(null);
       setChatId(null);
-      window.location.hash = '#login';
+      window.location.hash = toAdmin ? '#admin' : '#login';
     } catch (cause) { notify((cause as Error).message); }
     finally { setSigningOut(false); }
   }
@@ -130,6 +130,17 @@ function App() {
     <footer className="portal-footer"><strong>Shikshak</strong> · Restricted administration</footer>
     {toast && <div className="toast" role="status"><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast(null)}><X size={16}/></button></div>}
   </>;
+
+  // Student and teacher sessions cannot enter the admin console.
+  // Explicit sign-out is required before using a separate administrator identity.
+  if (isAdminRoute && session.role !== 'admin') return <main id="main" className="workspace-page admin-access-gate">
+    <a className="brand" href={link(session.role, 'home')} aria-label="Return to Shikshak"><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
+    <div className="workspace-panel">
+      <p className="eyebrow">RESTRICTED ACCESS</p><h1>Admin sign in.</h1>
+      <p>You are signed in as a {session.role}. Admin accounts use separate credentials and cannot share student or teacher sessions.</p>
+      <div className="form-actions"><button type="button" className="primary-button" disabled={signingOut} onClick={() => void logout(true)}>Log out and open admin access</button><a className="secondary-button" href={link(session.role, 'home')}>Return to my dashboard</a></div>
+    </div>
+  </main>;
 
   // The role comes from the server-authenticated session, never from the hash.
   if (!role) return <p role="alert">Your account role is not supported.</p>;
@@ -152,7 +163,7 @@ function App() {
     {view === 'classrooms' && <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>}
     {view === 'classroom' && (partnerId ? <Classroom role={role} partnerId={partnerId} back={() => go('classrooms')} message={openChat}/> : <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>)}
     {view === 'listing' && <OwnListing key={role + session.localityId} catalog={catalog} role={role} account={session} onSaved={listing => notify(listing.published ? 'Your listing is visible in discovery.' : 'Your listing was saved privately.')}/>}
-    {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')}/>}
+    {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')} openClassroom={openClassroom}/>}
     <footer className="portal-footer"><strong>Shikshak</strong> · Neighbourhood learning, made simpler. <a href="#admin">Admin access</a></footer>
     {toast && <div className="toast" role="status"><HeartHandshake size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
   </>;
