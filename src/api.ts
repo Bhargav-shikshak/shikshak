@@ -110,10 +110,79 @@ export const api = {
     if (!blob) throw new Error('PDF not found in this browser. It may have been cleared from site storage.');
     return blob;
   },
-  assign: (role: Role, partnerId: string, title: string, instructions: string, dueAt: string) =>
-    request<Homework>(roomPath(role, partnerId) + '/homework', { method: 'POST', body: { title, instructions, dueAt } }),
-  submitHomework: (role: Role, partnerId: string, id: string, submission: string) =>
-    request<Homework>(roomPath(role, partnerId) + '/homework/' + encodeURIComponent(id) + '/submit', { method: 'PUT', body: { submission } }),
+  assign: (role: Role, partnerId: string, title: string, instructions: string, dueAt: string, pdf?: PdfNoteAttachment) =>
+    request<Homework>(roomPath(role, partnerId) + '/homework', {
+      method: 'POST', body: { title, instructions, dueAt, ...(pdf ? { pdf } : {}) },
+    }),
+  assignHomeworkPdf: async (
+    role: Role, partnerId: string, title: string, instructions: string, dueAt: string, file: File,
+  ): Promise<Homework> => {
+    if (!isBrowserDemo) throw new Error('PDF homework uploads need backend file storage before they can be enabled.');
+    if (role !== 'teacher') throw new Error('Only teachers can attach assignment worksheets.');
+    await api.classroom(role, partnerId);
+    const storage = await import('./services/pdfNotes');
+    const pdf = await storage.savePdfNote(file);
+    try {
+      return await api.assign(role, partnerId, title, instructions, dueAt, pdf);
+    } catch (error) {
+      await storage.deletePdfNote(pdf.id).catch(() => undefined);
+      throw error;
+    }
+  },
+  submitHomework: (
+    role: Role, partnerId: string, id: string, submission: string,
+    pdf?: PdfNoteAttachment, removePdf = false,
+  ) => request<Homework>(roomPath(role, partnerId) + '/homework/' + encodeURIComponent(id) + '/submit', {
+    method: 'PUT', body: { submission, ...(pdf ? { pdf } : {}), ...(removePdf ? { removePdf: true } : {}) },
+  }),
+  submitHomeworkPdf: async (
+    role: Role, partnerId: string, id: string, submission: string, file: File,
+  ): Promise<Homework> => {
+    if (!isBrowserDemo) throw new Error('PDF homework uploads need backend file storage before they can be enabled.');
+    if (role !== 'student') throw new Error('Only students can submit PDF answer sheets.');
+    const room = await api.classroom(role, partnerId);
+    const homework = room.homework.find(item => item.id === id);
+    if (!homework || homework.reviewedAt) throw new Error('This homework is not available for submission.');
+    const storage = await import('./services/pdfNotes');
+    const pdf = await storage.savePdfNote(file);
+    try {
+      const result = await api.submitHomework(role, partnerId, id, submission, pdf);
+      if (homework.submissionPdf && homework.submissionPdf.id !== pdf.id)
+        await storage.deletePdfNote(homework.submissionPdf.id).catch(() => undefined);
+      return result;
+    } catch (error) {
+      await storage.deletePdfNote(pdf.id).catch(() => undefined);
+      throw error;
+    }
+  },
+  removeHomeworkSubmissionPdf: async (
+    role: Role, partnerId: string, id: string, submission: string,
+  ): Promise<Homework> => {
+    if (!isBrowserDemo) throw new Error('PDF changes need backend file storage.');
+    if (role !== 'student') throw new Error('Only students can change their homework submission.');
+    const room = await api.classroom(role, partnerId);
+    const homework = room.homework.find(item => item.id === id);
+    if (!homework || homework.reviewedAt) throw new Error('This homework is not available for changes.');
+    const result = await api.submitHomework(role, partnerId, id, submission, undefined, true);
+    if (homework.submissionPdf) {
+      const { deletePdfNote } = await import('./services/pdfNotes');
+      await deletePdfNote(homework.submissionPdf.id).catch(() => undefined);
+    }
+    return result;
+  },
+  getHomeworkPdf: async (
+    role: Role, partnerId: string, homeworkId: string, kind: 'assignment' | 'submission',
+  ): Promise<Blob> => {
+    if (!isBrowserDemo) throw new Error('PDF viewing requires connected backend file storage.');
+    const room = await api.classroom(role, partnerId);
+    const item = room.homework.find(homework => homework.id === homeworkId);
+    const pdf = kind === 'assignment' ? item?.assignmentPdf : item?.submissionPdf;
+    if (!pdf) throw new Error('There is no PDF attached to this homework.');
+    const { loadPdfNote } = await import('./services/pdfNotes');
+    const blob = await loadPdfNote(pdf.id);
+    if (!blob) throw new Error('PDF not found in this browser. It may have been cleared from site storage.');
+    return blob;
+  },
   reviewHomework: (role: Role, partnerId: string, id: string, review: string) =>
     request<Homework>(roomPath(role, partnerId) + '/homework/' + encodeURIComponent(id) + '/review', { method: 'PUT', body: { review } }),
 
