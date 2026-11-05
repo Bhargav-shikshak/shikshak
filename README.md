@@ -1,6 +1,6 @@
 # Shikshak
 
-Shikshak is a neighbourhood-based home tutoring platform. Students find nearby teachers on a map or list; teachers discover learners who want support. After a mutual match, both have a private classroom for lessons, notes, homework submissions and feedback.
+Shikshak is a neighbourhood-based tutoring platform. Students browse nearby tutors on a map or list and request their first class. The tutor accepts or declines the request. Only **accepted bookings** unlock shared classrooms, messaging, lesson notes, PDF homework and feedback. Teacher accounts cannot browse student profiles or locations.
 
 **Stage: browser-only interactive prototype by default. Not approved for a public launch involving real children or payments.** Without a connected backend, signup/login and classroom actions work entirely in local browser storage, not across devices. Do not use real student personal information or personal passwords. Email verification, account recovery, safeguarding, independent security review and payments are not implemented.
 
@@ -10,8 +10,9 @@ Shikshak is a neighbourhood-based home tutoring platform. Students find nearby t
 | --- | --- | --- |
 | Accounts | Individual student signup, login and profile | Individual teacher signup, login and profile |
 | Profile | Name, neighbourhood, bio, stronger and weaker subjects | Name, neighbourhood, bio, qualifications, experience |
-| Discovery | Nearby tutor map and searchable list, with distance-aware prices | Nearby student map/list with their strong and weak subjects |
-| Matching | Save tutors; mutual interest unlocks messaging | Save students; mutual interest unlocks messaging |
+| Discovery | Nearby tutor map and searchable list, with distance-aware prices | **No student Explore, student map or student profile browsing** |
+| Bookings | Request a first class with a tutor, preferred subject, level and time; see status | Receive and accept or decline student-initiated requests |
+| Access | Classroom and chat open after teacher acceptance | Booking details disclose the student's name and requested class details, not their home location |
 | Classroom | View/download PDF worksheets and lesson notes, submit written/PDF homework, read feedback | Schedule classes, share written/PDF notes, attach PDF worksheets, review PDF answers |
 | Dashboard | Classes, homework, tutors and notes | Classes, review queue, students and notes |
 | Rates | Indicative price quote based on neighbourhood distance | Request a custom base rate, subject to admin approval |
@@ -42,7 +43,7 @@ npm run test:pdf-notes
 npm run preview
 ~~~
 
-The server integration test covers registration, session isolation, 30-day home-pin change enforcement, cross-city distance quotes, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks the additive five-month history migration (50 additional accounts and rich classrooms), converted former previews, signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. The PDF test checks file validation, teacher notes and worksheets, student PDF homework submissions, replacement uploads, tutor reviews, IndexedDB storage, matched access, unrelated-account rejection and file cleanup. GitHub Actions runs both tests on main.
+The server integration test covers role-based access, student-only class requests, teacher approval and decline, classroom/chat access gating, teacher student-location privacy, registration, account sessions, pricing, admin controls, 30-day home-location change limits, classes, homework and logout. The browser-demo test checks previous-match migration to accepted bookings, historical accounts and sessions, pending/declined sample requests, test-account switching, classroom access, homework and session isolation without network calls. The PDF test checks file validation, teacher notes and worksheets, student PDF homework submissions, replacement uploads, tutor reviews, IndexedDB storage, matched access, unrelated-account rejection and file cleanup. GitHub Actions runs both tests on main.
 
 ## Browser-only demo (default)
 
@@ -56,15 +57,15 @@ Demo login shortcuts are shown on the sign-in screen. Click one and then select 
 | Teacher (Arjun) | `teacher@shikshak.demo` |
 | Administrator | `admin@shikshak.demo` |
 
-The five-month demo dataset includes **50 new profiles (22 teachers and 28 family-managed student profiles)** in addition to the original 18 fictional teacher/student profiles and the administrator, for **at least 69 seeded accounts**. Every sample account is backed by persisted, editable browser-local state, not hardcoded listing cards. The dataset covers 11 Guwahati neighbourhoods, different subjects and class levels, established mutual matches, unanswered interests, months of chats and classroom activity, cancelled/completed/upcoming classes, lesson notes, homework awaiting submission, submitted work awaiting review, tutor feedback, and pending/approved/rejected rate requests.
+The five-month demo dataset includes **50 new profiles (22 teachers and 28 family-managed student profiles)** in addition to the original 18 fictional teacher/student profiles and the administrator, for **at least 69 seeded accounts**. Every sample account is backed by persisted, editable browser-local state, not hardcoded listing cards. The dataset covers 11 Guwahati neighbourhoods, different subjects and class levels, established accepted bookings, unanswered class requests, months of chats and classroom activity, cancelled/completed/upcoming classes, lesson notes, homework awaiting submission, submitted work awaiting review, tutor feedback, and pending/approved/rejected rate requests.
 
-The familiar fictional Aditi and Arjun accounts retain their original relationship and homework examples, with additional historical activity. Rahul and the other former preview profiles are now real local demo accounts that you can switch into. The additional sample teachers/students use addresses such as `months-teacher-1@shikshak.demo` and `months-student-1@shikshak.demo` with the same test password shown above.
+Aditi and Arjun retain their original classroom and homework history, now represented by an accepted booking. Rahul and other former preview profiles remain switchable local demo accounts that can receive class requests. The additional sample teachers/students use addresses such as `months-teacher-1@shikshak.demo` and `months-student-1@shikshak.demo` with the same test password shown above.
 
 To create a personal test account, use **Sign up** with invented details and a test-only password. Alternatively, while signed in, open **Test accounts** in the demo bar and choose **Create a test student or teacher**. You only need to provide a name, account type, neighbourhood, subject and class level. Shikshak generates a unique fictional email and test password and publishes a starter listing automatically, so the account is discoverable immediately.
 
-The **Test accounts** switcher displays **all** browser-local registrations (not just the preloaded demo users) alongside the demo administrator. Use the new **search field** to filter by name, email, role or neighbourhood; the active account remains at the top. Clicking **Switch** changes the signed-in identity without entering credentials again. Teacher/student dashboards, matching, chat, classroom, and admin data are reloaded for the newly selected account, including switches between two accounts of the same role. Quick-created accounts use the shared demo password `ShikshakDemo2026!` if you later use the normal login form.
+The **Test accounts** switcher displays **all** browser-local registrations (not just the preloaded demo users) alongside the demo administrator. Use the new **search field** to filter by name, email, role or neighbourhood; the active account remains at the top. Clicking **Switch** changes the signed-in identity without entering credentials again. Teacher/student dashboards, bookings, chat, classroom, and admin data are reloaded for the newly selected account, including switches between two accounts of the same role. Quick-created accounts use the shared demo password `ShikshakDemo2026!` if you later use the normal login form.
 
-For a two-sided test: switch to an account, send interest in **Explore**, switch to the counterpart and choose **Match back** under **Matches**. Then open **Message** to exchange messages, or **Classroom** to schedule lessons, share notes, and submit/review homework. Both users see the same browser-local data as you switch.
+For a two-sided test: switch to a student, open **Explore** and select **Book a class** on a tutor profile. Choose the subject, class level, preferred start time and duration. Switch to the teacher and open **Bookings → Pending**, then select **Accept booking** or **Decline**. Accepted requests unlock chat and a shared classroom; declined requests do not. Both demo accounts use the same local data.
 
 The expanded dataset is added **once** to existing browser-demo storage; it does not wipe user-created accounts, matches, messages, uploads, homework or preferences. You do **not** need to reset to see the richer history. The **Reset local demo accounts and data** control on the login screen deliberately removes this site's browser-demo state (including PDF blobs) and recreates the full expanded sample data on the next visit. Other tabs for the same website share browser storage and the active local demo identity, so do sequential account tests in one tab rather than expecting independent simultaneous logins.
 
@@ -74,13 +75,13 @@ LocalStorage is **not secure authentication**, and its contents can be modified 
 
 ### Try a real two-account flow
 
-1. Sign in using the fictional demo student account, or sign up as a student and publish your listing.
-2. Log out, then sign in as the fictional demo teacher in the **same browser**. You can also create another teacher account and publish its listing.
-3. Browse **Explore** and send interest to the other person's listing. That person can match back in **Matches**.
-4. Use **Classes** or the new **Classroom** action in Matches. Teachers schedule lessons, post notes and assign homework; students submit written work; teachers leave reviews.
-5. As a teacher, request a personal base rate in Profile. An administrator can approve or reject it.
+1. Sign in as the demo student Aditi (or create a new student test account).
+2. Browse **Explore**, choose a tutor and request a class.
+3. Switch into the tutor's account and open **Bookings → Pending** to accept or decline.
+4. After acceptance, open **Classes** or **Message**. Teachers schedule lessons, share PDF notes and assign homework; students submit work for feedback.
+5. As a teacher, request a custom rate in Profile. An administrator can approve or reject it.
 
-All 14 former Guwahati preview listings are converted into editable, persisted teacher/student demo accounts with published listings. They are not hardcoded into discovery rendering. Switching into a former preview account lets you reply to interests, message students or tutors, schedule classes, and manage homework. Existing browser demo data is upgraded in place, keeping previously created accounts, connections and classwork.
+Former preview identities are persisted browser-local demo accounts. Teachers remain discoverable by students, but student profiles are no longer returned to teachers. Old mutual matches are migrated into **accepted bookings** without deleting existing classes, messages, notes, homework or PDFs.
 
 ## Pricing policy
 
@@ -128,7 +129,7 @@ Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEO
 | Centralized typed API client | src/api.ts |
 | Home-area map picker and reverse geocoding | src/components/HomeAreaPicker.tsx and src/services/homeArea.ts |
 | Shared domain types | shared/domain.ts |
-| Auth, sessions, role permissions, pricing, matching and classroom logic | demo/api.ts |
+| Auth, role permissions, booking decisions, pricing and classroom logic | demo/api.ts |
 | Guwahati catalogue of neighbourhoods/subjects | demo/seed.ts |
 | One-time fictional account templates (not render-time listing data) | demo/fixtures.ts |
 | Five-month historical activity and additional member templates (demo-only) | demo/history.ts |
@@ -139,9 +140,9 @@ Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEO
 
 In browser-demo mode, the shared API contract runs entirely inside each browser with localStorage. The existing Durable Object class name and binding are retained for optional Cloudflare API mode, but server state then lives in **one shared platform object**, not per browser. Neither store is suitable for large-scale production.
 
-API root: /api/v1. Main access-controlled routes include /auth/signup, /auth/login, /auth/me, /profile, /profile/request-rate, /workspaces/{role}/discovery, /workspaces/{role}/listing, /workspaces/{role}/connections, /workspaces/{role}/classrooms, per-match messages and classroom actions, and the admin endpoints.
+API root: /api/v1. Booking routes include **GET/POST /workspaces/student/bookings** and **GET/PUT /workspaces/teacher/bookings/:bookingId**. Students can GET /workspaces/student/discovery, but teachers cannot access any student discovery endpoint. Accepted bookings authorize /workspaces/{role}/classrooms and per-classroom chat, notes, sessions and homework. The old mutual-interest endpoint is disabled.
 
-In **API mode**, sessions are tracked server-side with HttpOnly SameSite cookies. Passwords use salted PBKDF2-SHA256 derivation. Login attempts are throttled by account email. Classroom actions verify mutual-match membership and role permissions. In **browser-demo mode**, the same domain logic runs locally, but the browser user controls the data and simulated session, so there is no real security boundary.
+In **API mode**, sessions are tracked server-side with HttpOnly SameSite cookies. Passwords use salted PBKDF2-SHA256 derivation. Login attempts are throttled by account email. Classroom actions verify a teacher-accepted booking and role permissions. Teacher-facing responses contain no student map pins, home coordinates, student discovery descriptions or neighbourhood details. In **browser-demo mode**, the same domain logic runs locally, but the browser user controls the data and simulated session, so there is no real security boundary.
 
 ## Deployment
 
