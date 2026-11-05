@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ArrowDownWideNarrow, BookOpen, ChevronDown, GraduationCap, Heart, List, Map, MapPin, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import { ArrowDownWideNarrow, BookOpen, ChevronDown, GraduationCap, Heart, List, Map, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { defaultFilters, type Catalog, type DiscoveryListing, type Filters, type Role } from '../../shared/domain';
 import { api } from '../api';
 import { useResource } from '../useResource';
@@ -9,13 +9,12 @@ import { DiscoveryMap } from './DiscoveryMap';
 interface ExploreProps {
   catalog: Catalog;
   role: Role;
-  onRole: (role: Role) => void;
   onChat: (id: string) => void;
   notify: (message: string) => void;
 }
 const emptyListings: DiscoveryListing[] = [];
 
-export function Explore({ catalog, role, onRole, onChat, notify }: ExploreProps) {
+export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<DiscoveryListing | null>(null);
@@ -75,10 +74,7 @@ export function Explore({ catalog, role, onRole, onChat, notify }: ExploreProps)
         <p className="eyebrow hero-eyebrow"><span/> THE NEIGHBOURHOOD TUTOR NETWORK</p>
         <h1>{role === 'student' ? 'Good tutors.' : 'Good learners.'}<br/><em>Close to home.</em></h1>
         <p className="hero-copy">{role === 'student' ? 'Find a home tutor nearby, see what they teach, and connect when the interest is mutual.' : 'Find learners near you, see what they need help with, and connect when the interest is mutual.'}</p>
-        <div className="role-switch" aria-label="Discovery mode">
-          <button type="button" aria-pressed={role === 'student'} onClick={() => onRole('student')}><BookOpen size={17}/> Find a tutor</button>
-          <button type="button" aria-pressed={role === 'teacher'} onClick={() => onRole('teacher')}><Users size={17}/> Find learners</button>
-        </div>
+        <p className="explore-role-note">{role === 'student' ? 'Showing tutors near your saved home neighbourhood. Quotes include distance-based travel fees.' : 'Showing nearby students. Their learning strengths and support needs appear on their profiles.'}</p>
       </div>
       <div className="search-panel">
         <div className="search-bar">
@@ -113,7 +109,7 @@ export function Explore({ catalog, role, onRole, onChat, notify }: ExploreProps)
         {listings.map((item) => <ListingCard key={item.id} item={item} selected={active?.id === item.id} busy={busy !== null} onOpen={() => open(item)} onSave={() => void save(item)}/>)}
         {data && !listings.length && <div className="empty-state"><Search size={24}/><h3>{filters.saved ? 'No saved listings here' : 'No matching listings'}</h3><p>{filters.saved ? 'Use the heart on a profile card to save it for later.' : 'Try another subject or widen your search area.'}</p>{hasFilters && <button type="button" className="secondary-button" onClick={() => setFilters(defaultFilters)}>Clear filters</button>}</div>}
       </div>
-      <p className="explore-foot">{catalog.demo ? 'Shikshak demo · Fictional profiles' : 'Shikshak'}<span>Neighbourhoods only. No exact addresses.</span></p>
+      <p className="explore-foot">{catalog.demo ? 'Shikshak pilot · Fictional profiles are marked' : 'Shikshak'}<span>Map pins are approximate. Your exact address stays private.</span></p>
     </section>
     <DiscoveryMap catalog={catalog} listings={listings} origin={data?.origin} active={active} onSelect={select} onOpen={open} mobileVisible={mobileMap}/>
     {currentDetail && <Modal title={currentDetail.name} onClose={() => { setDetail(null); setMutationError(''); }}>
