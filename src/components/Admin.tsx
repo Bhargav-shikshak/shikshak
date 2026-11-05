@@ -33,7 +33,7 @@ export function Admin() {
       'Change platform access for ' + member.name + '? This changes their server-enforced permissions.'
     )) return;
     if ((action === 'verify' || action === 'unverify') && !window.confirm(
-      (action === 'verify' ? 'Verify ' : 'Revoke verification for ') + member.name + '?'
+      (action === 'verify' ? 'Confirm you reviewed the teacher details and verify ' : 'Revoke verification for ') + member.name + '?'
     )) return;
     setBusy(member.id + ':' + action); setNotice(''); setFailure('');
     try {
@@ -99,6 +99,8 @@ export function Admin() {
             {member.role === 'teacher' && <p>
               {member.teacherVerified ? 'Verified teacher' : 'Verification pending'} · Public badge {member.teacherVerified ? 'enabled' : 'disabled'}
             </p>}
+            {member.role === 'teacher' && <p><strong>Qualifications:</strong> {member.qualifications || 'Not supplied'} · <strong>Experience:</strong> {member.experience || 'Not supplied'}</p>}
+            {member.role === 'teacher' && member.bio && <p>{member.bio}</p>}
             <div className="admin-member-actions">
               {member.role === 'teacher' && <button type="button" disabled={!!busy}
                 onClick={() => void run(member, member.teacherVerified ? 'unverify' : 'verify')}>
