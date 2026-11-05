@@ -66,7 +66,7 @@ function App() {
   return <>
     <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); main?.setAttribute("tabindex", "-1"); main?.focus(); }}>Skip to content</a>
     <header className="site-header"><div className="header-inner">
-      <a className="brand" href={link(role, 'explore')} aria-label="Studylane home" onClick={() => setChat(null)}><img src="/studylane.svg" width="40" height="40" alt=""/><span>study<span>lane</span><b>.</b></span></a>
+      <a className="brand" href={link(role, 'explore')} aria-label="Shikshak home" onClick={() => setChat(null)}><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
       <nav className="site-nav" aria-label="Main navigation">
         {views.map(({ id, label, icon: Icon }) => <a key={id} href={link(role, id)} aria-current={view === id ? 'page' : undefined} onClick={() => setChat(null)}><Icon size={17}/><span>{label}</span></a>)}
       </nav>
@@ -78,7 +78,7 @@ function App() {
       </div>
     </div></header>
     {error && <main id="main" className="workspace-page"><ErrorNotice message={error} retry={refresh}/></main>}
-    {!catalog && !error && <main id="main" className="workspace-page" role="status">Loading Studylane…</main>}
+    {!catalog && !error && <main id="main" className="workspace-page" role="status">Loading Shikshak…</main>}
     {catalog && view === 'explore' && <Explore key={role} catalog={catalog} role={role} onRole={switchRole} onChat={openChat} notify={notify}/>}
     {catalog && view === 'matches' && <Matches key={role} catalog={catalog} role={role} chatId={chat?.role === role ? chat.id : null} clearChat={() => setChat(null)} openChat={openChat} explore={() => switchRole(role)} notify={notify}/>}
     {catalog && view === 'listing' && <OwnListing key={role} catalog={catalog} role={role} onSaved={(listing) => notify(listing.published ? 'Your listing is visible in discovery.' : 'Your listing was saved privately.')}/>}
