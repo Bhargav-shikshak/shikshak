@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { ArrowDownWideNarrow, BookOpen, ChevronDown, GraduationCap, Heart, List, Map, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { defaultFilters, type Catalog, type DiscoveryListing, type Filters, type Role } from '../../shared/domain';
 import { api } from '../api';
@@ -18,6 +18,7 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<DiscoveryListing | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<DiscoveryListing | null>(null);
   const [mobileMap, setMobileMap] = useState(false);
   const [moreFilters, setMoreFilters] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -55,15 +56,18 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
     finally { setBusy(null); }
   }
 
-  async function interest(item: DiscoveryListing) {
+  async function book(item: DiscoveryListing, details: {
+    subject: string; grade: string; startsAt: string; durationMinutes: number; note: string;
+  }) {
     if (busy) return;
     setBusy(item.id);
     setMutationError('');
     try {
-      const { status } = await api.interest(role, item.id);
-      setPatches((previous) => ({ ...previous, [item.id]: { connection: status } }));
+      await api.bookClass(item.id, details);
+      setPatches(previous => ({ ...previous, [item.id]: { connection: 'pending' } }));
+      setBookingTarget(null);
       refresh();
-      notify(status === 'matched' ? 'It’s a match! You can now start a conversation.' : 'Interest sent.');
+      notify('Class request sent. The tutor can accept or decline it in Bookings.');
     } catch (error) { setMutationError((error as Error).message); }
     finally { setBusy(null); }
   }
@@ -73,7 +77,7 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
       <div className="hero">
         <p className="eyebrow hero-eyebrow"><span/> THE NEIGHBOURHOOD TUTOR NETWORK</p>
         <h1>{role === 'student' ? 'Good tutors.' : 'Good learners.'}<br/><em>Close to home.</em></h1>
-        <p className="hero-copy">{role === 'student' ? 'Find a home tutor nearby, see what they teach, and connect when the interest is mutual.' : 'Find learners near you, see what they need help with, and connect when the interest is mutual.'}</p>
+        <p className="hero-copy">{role === 'student' ? 'Find a home tutor nearby, compare rates and request your first class. The tutor will confirm availability.' : 'Find learners near you, see what they need help with, and connect when the interest is mutual.'}</p>
         <p className="explore-role-note">{role === 'student' ? 'Showing tutors near your saved home neighbourhood. Quotes include distance-based travel fees.' : 'Showing nearby students. Their learning strengths and support needs appear on their profiles.'}</p>
       </div>
       <div className="search-panel">
@@ -111,8 +115,72 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
     </section>
     <DiscoveryMap catalog={catalog} listings={listings} origin={data?.origin} active={active} onSelect={select} onOpen={open} mobileVisible={mobileMap}/>
     {currentDetail && <Modal title={currentDetail.name} onClose={() => { setDetail(null); setMutationError(''); }}>
-      <ListingDetails listing={currentDetail} status={currentDetail.connection} busy={busy !== null} onInterest={() => void interest(currentDetail)} onChat={() => onChat(currentDetail.id)}/>
+      <ListingDetails listing={currentDetail} status={currentDetail.connection} busy={busy !== null}
+        onBook={() => { setBookingTarget(currentDetail); setDetail(null); }} onChat={() => onChat(currentDetail.id)}/>
       {mutationError && <ErrorNotice message={mutationError}/>}
     </Modal>}
+    {bookingTarget && <BookingForm teacher={bookingTarget} busy={busy !== null}
+      error={mutationError} close={() => { setBookingTarget(null); setMutationError(''); }}
+      submit={details => void book(bookingTarget, details)}/>}
   </main>;
+}
+
+
+function firstPossibleClass(): string {
+  const tomorrow = new Date(Date.now() + 86400000);
+  tomorrow.setHours(17, 0, 0, 0);
+  const local = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function BookingForm({ teacher, busy, error, close, submit }: {
+  teacher: DiscoveryListing; busy: boolean; error: string; close: () => void;
+  submit: (details: {
+    subject: string; grade: string; startsAt: string; durationMinutes: number; note: string;
+  }) => void;
+}) {
+  const [subject, setSubject] = useState(teacher.subjects[0] ?? '');
+  const [grade, setGrade] = useState(teacher.grades[0] ?? '');
+  const [startsAt, setStartsAt] = useState(firstPossibleClass);
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [note, setNote] = useState('');
+  function confirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!subject || !grade || !startsAt || new Date(startsAt).getTime() < Date.now() + 15 * 60000) return;
+    submit({ subject, grade, startsAt: new Date(startsAt).toISOString(), durationMinutes, note: note.trim() });
+  }
+  return <Modal title={'Request a class with ' + teacher.name} onClose={close}>
+    <div className="booking-form-heading">
+      <p className="eyebrow">REQUEST YOUR FIRST CLASS</p>
+      <h2>Book a class with {teacher.name}.</h2>
+      <p>Choose your preferred time. The tutor will accept or decline before messaging and classroom tools open.</p>
+      <strong>{money(teacher.rate)} / hr <small>(includes the current distance-based travel fee)</small></strong>
+    </div>
+    {error && <ErrorNotice message={error}/>}
+    <form className="booking-form" onSubmit={confirm}>
+      <div className="booking-form-grid">
+        <label>Subject<select value={subject} required onChange={event => setSubject(event.target.value)}>
+          {teacher.subjects.map(value => <option key={value} value={value}>{value}</option>)}
+        </select></label>
+        <label>Class level<select value={grade} required onChange={event => setGrade(event.target.value)}>
+          {teacher.grades.map(value => <option key={value} value={value}>{value}</option>)}
+        </select></label>
+        <label>Preferred first class<input type="datetime-local" required value={startsAt}
+          min={new Date(Date.now() + 15 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+          onChange={event => setStartsAt(event.target.value)}/></label>
+        <label>Duration<select value={durationMinutes} onChange={event => setDurationMinutes(Number(event.target.value))}>
+          <option value={30}>30 minutes</option><option value={45}>45 minutes</option>
+          <option value={60}>60 minutes</option><option value={90}>90 minutes</option>
+          <option value={120}>120 minutes</option>
+        </select></label>
+      </div>
+      <label>Message to tutor (optional)<textarea rows={3} maxLength={600} value={note}
+        placeholder="What would you like to learn in your first class?"
+        onChange={event => setNote(event.target.value)}/></label>
+      <p className="booking-form-privacy">Your home location and student Explore profile are not shared with the tutor.</p>
+      <button className="primary-button" type="submit" disabled={busy || !subject || !grade || new Date(startsAt).getTime() < Date.now() + 15 * 60000}>
+        {busy ? 'Sending request…' : 'Request class'}
+      </button>
+    </form>
+  </Modal>;
 }
