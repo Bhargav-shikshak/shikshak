@@ -105,7 +105,8 @@ export async function handleApi(request: Request, env: Environment): Promise<Res
     const method = request.method;
     // Reject cross-site requests even when a browser omits Origin.
     const origin = request.headers.get('origin');
-    if ((origin && origin !== url.origin) || request.headers.get('sec-fetch-site') === 'cross-site')
+    const publicRead = method === 'GET' && ['/api/v1/health', '/api/v1/catalog'].includes(url.pathname);
+    if (!publicRead && ((origin && origin !== url.origin) || request.headers.get('sec-fetch-site') === 'cross-site'))
       throw new HttpError('Cross-origin requests are not permitted.', 403);
     const path = decodeURIComponent(url.pathname.replace(/^\/api\/v1\/?/, '')).replace(/\/$/, '');
     if (!url.pathname.startsWith('/api/v1/')) throw new HttpError('Endpoint not found.', 404);
