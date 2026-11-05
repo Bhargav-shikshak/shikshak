@@ -81,17 +81,18 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
         <p className="explore-role-note">{role === 'student' ? 'Showing tutors near your saved home neighbourhood. Quotes include distance-based travel fees.' : 'Showing nearby students. Their learning strengths and support needs appear on their profiles.'}</p>
       </div>
       <div className="search-panel">
+        <label className="dibya-search-label" htmlFor="explore-search">Who or what are you looking for?</label>
         <div className="search-bar">
           <Search size={20}/>
-          <input aria-label="Search listings" placeholder={role === 'student' ? 'Search by subject, tutor or area' : 'Search by subject, learner or area'} value={filters.query} onChange={(event) => update('query', event.target.value)}/>
+          <input id="explore-search" aria-label="Search listings" placeholder={role === 'student' ? 'Tutor name, subject or neighbourhood' : 'Learner name, subject or area'} value={filters.query} onChange={(event) => update('query', event.target.value)}/>
           {filters.query && <button type="button" className="icon-button clear-search" onClick={() => update('query', '')} aria-label="Clear search"><X size={17}/></button>}
           <span className="area-select" title="Distances are calculated from your saved map marker"><MapPin size={17}/> My saved area</span>
         </div>
         <div className="filter-row">
           <label className="filter-pill"><BookOpen size={15}/><select aria-label="Subject" value={filters.subject} onChange={(event) => update('subject', event.target.value)}><option value="">Subject</option>{catalog.subjects.map((subject) => <option key={subject}>{subject}</option>)}</select><ChevronDown size={12}/></label>
           <label className="filter-pill"><GraduationCap size={16}/><select aria-label="Class level" value={filters.grade} onChange={(event) => update('grade', event.target.value)}><option value="">Class level</option>{catalog.grades.map((grade) => <option key={grade}>{grade}</option>)}</select><ChevronDown size={12}/></label>
-          <button type="button" className="filter-pill" aria-expanded={moreFilters} aria-controls="advanced-filters" onClick={() => setMoreFilters(!moreFilters)}><SlidersHorizontal size={15}/> Filters{(filters.radius || filters.maxRate) && <i/>}</button>
-          <button type="button" className="filter-pill saved-filter" aria-pressed={filters.saved} onClick={() => update('saved', !filters.saved)}><Heart size={16}/> Saved</button>
+          <button type="button" className="filter-pill" aria-expanded={moreFilters} aria-controls="advanced-filters" onClick={() => setMoreFilters(!moreFilters)}><SlidersHorizontal size={15}/> More filters{(filters.radius || filters.maxRate) && <i/>}</button>
+          <button type="button" className="filter-pill saved-filter" aria-pressed={filters.saved} onClick={() => update('saved', !filters.saved)}><Heart size={16}/> Saved tutors</button>
         </div>
         {moreFilters && <div className="advanced-filters" id="advanced-filters">
           <label>Distance from area<select value={filters.radius} onChange={(event) => update('radius', event.target.value)}><option value="">Any distance</option><option value="2">Within 2 km</option><option value="5">Within 5 km</option><option value="10">Within 10 km</option></select></label>

@@ -16,6 +16,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const localityId = catalog.defaultLocality;
   const [homeArea, setHomeArea] = useState<HomeArea | null>(null);
   const [setupToken, setSetupToken] = useState('');
@@ -115,7 +116,23 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         </div>}
         {mode === 'signup' && <label>Your name<input required autoComplete="name" maxLength={60} value={name} onChange={event => setName(event.target.value)} placeholder="Full name"/></label>}
         <label>Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com"/></label>
-        <label>Password<input required type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'login' ? 1 : 10} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} placeholder={mode === 'login' ? 'Your password' : 'At least 10 characters'}/></label>
+        <div className="dibya-password-field">
+          <label htmlFor="shikshak-password">Password</label>
+          <div className="dibya-password-wrap">
+            <input id="shikshak-password" required type={showPassword ? 'text' : 'password'}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              minLength={mode === 'login' ? 1 : 10} maxLength={128}
+              value={password} onChange={event => setPassword(event.target.value)}
+              placeholder={mode === 'login' ? 'Your password' : 'At least 10 characters'}/>
+            <button type="button" className="dibya-password-toggle"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword(value => !value)}>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {mode !== 'login' && <span className="field-help">Use at least 10 characters.</span>}
+        </div>
         {mode === 'signup' && <div className="home-area-group">
           <h3>Choose your home neighbourhood</h3>
           <p className="field-help">Place the marker near your neighbourhood, not your home address. The city and locality will fill automatically.</p>
