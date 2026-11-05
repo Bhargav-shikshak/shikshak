@@ -15,6 +15,7 @@ import { Explore } from './components/Explore';
 import { ListingEditor } from './components/ListingEditor';
 import { Bookings } from './components/Bookings';
 import { Profile } from './components/Profile';
+import { LegalPage, SiteFooter, type LegalKind } from './components/Legal';
 import './workspace.css';
 import './portal.css';
 
@@ -68,6 +69,7 @@ function App() {
   const [signingOut, setSigningOut] = useState(false);
   const routeParts = route.slice(1).split('/');
   const isAdminRoute = routeParts[0] === 'admin';
+  const legalKind: LegalKind | null = routeParts[0] === 'terms' || routeParts[0] === 'privacy' ? routeParts[0] : null;
   const role: Role | null = session?.role === 'student' || session?.role === 'teacher' ? session.role : null;
   const selected = routeParts[1];
   const view: View =
@@ -94,9 +96,16 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
   useEffect(() => {
-    if (!session) return;
+    if (legalKind) {
+      document.title = (legalKind === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions') + ' · Shikshak';
+      return;
+    }
+    if (!session) {
+      document.title = 'Shikshak';
+      return;
+    }
     document.title = (session.role === 'admin' ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
-  }, [session, view]);
+  }, [session, view, legalKind]);
 
   function loggedIn(account: PublicAccount) {
     setSession(account);
@@ -115,11 +124,13 @@ function App() {
     finally { setSigningOut(false); }
   }
 
+  if (legalKind) return <LegalPage kind={legalKind} backHref={session?.role === 'admin' ? '#admin' : role ? link(role, 'home') : '#login'}/>;
+
   if (!catalog) return <main id="main" className="workspace-page">
     {catalogError ? <ErrorNotice message={catalogError} retry={refresh}/> : <p role="status">Loading Shikshak…</p>}
   </main>;
   if (session === undefined) return <main id="main" className="workspace-page" role="status">Checking your session…</main>;
-  if (!session) return <Auth catalog={catalog} onSuccess={loggedIn} admin={isAdminRoute}/>;
+  if (!session) return <><Auth catalog={catalog} onSuccess={loggedIn} admin={isAdminRoute}/><SiteFooter variant="auth"/></>;
 
   if (session.role === 'admin') return <>
     <header className="site-header"><div className="header-inner portal-header">
@@ -132,7 +143,7 @@ function App() {
       <DemoAccountSwitcher catalog={catalog} current={session} onSwitch={loggedIn}/>
     </div>}
     <Admin/>
-    <footer className="portal-footer"><strong>Shikshak</strong> · Restricted administration</footer>
+    <SiteFooter variant="admin"/>
     {toast && <div className="toast" role="status"><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast(null)}><X size={16}/></button></div>}
   </>;
 
@@ -184,7 +195,7 @@ function App() {
       <OwnListing key={session.id + ':' + session.localityId} catalog={catalog} role={role} account={session}
         onSaved={listing => notify(listing.published ? 'Your tutor listing is visible to students.' : 'Your listing was saved privately.')}/>}
     {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')} openClassroom={openClassroom}/>}
-    <footer className="portal-footer"><strong>Shikshak</strong> · Neighbourhood learning, made simpler. <a href="#admin">Admin access</a></footer>
+    <SiteFooter/>
     {toast && <div className="toast" role="status"><BookOpen size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
   </>;
 }
