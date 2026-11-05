@@ -157,6 +157,33 @@ result = await call('/auth/login', { method: 'POST', body: {
   email: 'newstudent@example.test', password: 'demo-test-pass-123',
 } });
 assert.equal(result.status, 200, 'Created account persists and can log in again');
+// Existing browsers with only a legacy locality get one initial map setup.
+const homeOne = { lat: 26.7614, lng: 94.2031, city: 'Jorhat', locality: 'Tarajan' };
+const baseProfile = {
+  name: 'A New Student', localityId: 'rajgarh', bio: 'Reading for exams',
+  strongSubjects: [], weakSubjects: ['Mathematics'], qualifications: '', experience: '',
+};
+let pinned = await call('/profile', { method: 'PUT',
+  body: { ...baseProfile, homeArea: homeOne } });
+assert.equal(pinned.status, 200, 'Legacy account can set its first home marker');
+assert.equal(pinned.data.homeArea.lat, 26.76, 'Private exact latitude is rounded to neighbourhood scale');
+assert.equal(pinned.data.homeArea.lng, 94.2, 'Private exact longitude is rounded to neighbourhood scale');
+assert.ok(pinned.data.homeChangedAt, 'Home location records when the pin was saved');
+pinned = await call('/profile', { method: 'PUT', body: {
+  ...baseProfile, homeArea: { ...homeOne, lat: 26.62, lng: 92.8, city: 'Tezpur' },
+} });
+assert.equal(pinned.status, 429, 'Changing the home location twice in 30 days is blocked by the API');
+assert.ok(pinned.data.message.includes('30 days'), 'Rate-limit response explains the cooldown');
+pinned = await call('/profile', { method: 'PUT', body: { ...baseProfile, bio: 'Updated bio' } });
+assert.equal(pinned.status, 200, 'Editing unrelated profile details remains allowed during cooldown');
+let savedState = JSON.parse(data.get('shikshak.browser-pilot.v1'));
+savedState.accounts[pinned.data.id].homeChangedAt = new Date(Date.now() - 31 * 86400000).toISOString();
+data.set('shikshak.browser-pilot.v1', JSON.stringify(savedState));
+pinned = await call('/profile', { method: 'PUT', body: {
+  ...baseProfile, homeArea: { ...homeOne, lat: 26.62, lng: 92.8, city: 'Tezpur' },
+} });
+assert.equal(pinned.status, 200, 'After 30 days a different map pin is accepted');
+assert.equal(pinned.data.homeArea.city, 'Tezpur');
 
 // Test the in-app account manager, including a newly created, discoverable profile.
 let profiles = await listBrowserDemoAccounts();
@@ -166,6 +193,7 @@ assert.ok(profiles.some(x => x.email === 'teacher@shikshak.demo' && x.published)
 
 const quickStudent = await createBrowserDemoAccount({
   name: 'Priya Sharma', role: 'student', localityId: 'ulubari',
+  homeArea: { lat: 26.76, lng: 94.2, city: 'Jorhat', locality: 'Tarajan' },
   subject: 'Mathematics', grade: 'Classes 9–10',
 });
 assert.equal(quickStudent.role, 'student');
@@ -173,6 +201,8 @@ result = await call('/auth/me');
 assert.equal(result.data.id, quickStudent.id, 'Quick-create switches to the new user');
 result = await call('/workspaces/student/listing');
 assert.equal(result.data.published, true, 'Quick-created account has a discoverable listing');
+assert.equal(result.data.location.lat, 26.76, 'Quick demo signup uses the map location for its listing');
+assert.ok(result.data.locality.includes('Jorhat'), 'Geocoded city is displayed publicly');
 assert.ok(result.data.weakSubjects.includes('Mathematics'), 'Student topic is reflected in profile');
 profiles = await listBrowserDemoAccounts();
 assert.ok(profiles.some(x => x.id === quickStudent.id && x.published), 'New quick profile appears in picker');
