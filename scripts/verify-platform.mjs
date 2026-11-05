@@ -86,8 +86,16 @@ equal(foundTeacher.baseRate, 400, 'Price quote uses platform base');
 equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
 ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persisted listings');
 equal(result.data.listings.length, 1, 'Server does not inject fictional previews into discovery');
-result = await call('workspaces/student/listings/nonexistent-preview/interest', { method: 'PUT', cookie: student.cookie });
-equal(result.status, 404, 'Unknown profiles cannot be matched');
+result = await call('workspaces/student/listings/' + teacher.data.id + '/interest', {
+  method: 'PUT', cookie: student.cookie,
+});
+equal(result.status, 410, 'Old mutual interest endpoint is retired');
+result = await call('workspaces/teacher/discovery', { cookie: teacher.cookie });
+equal(result.status, 403, 'Teachers cannot browse student discovery or map locations');
+result = await call('workspaces/teacher/listings/' + student.data.id + '/save', {
+  method: 'PUT', cookie: teacher.cookie, body: { saved: true },
+});
+equal(result.status, 403, 'Teachers cannot search or save student listings');
 
 result = await call('profile', { method: 'PUT', cookie: student.cookie,
   body: { name: 'Student One', localityId: 'rajgarh', bio: 'Preparing for exams',
@@ -95,9 +103,7 @@ result = await call('profile', { method: 'PUT', cookie: student.cookie,
 equal(result.status, 200, 'Student can update profile');
 equal(result.data.weakSubjects[0], 'Mathematics', 'Weak subject is saved');
 result = await call('workspaces/teacher/discovery', { cookie: teacher.cookie });
-const foundStudent = result.data.listings.find(x => x.id === student.data.id);
-ok(foundStudent && foundStudent.strongSubjects.includes('English'), 'Tutor can see student strengths');
-ok(foundStudent && foundStudent.weakSubjects.includes('Mathematics'), 'Tutor can see student support needs');
+equal(result.status, 403, 'Editing a student profile never makes it browseable by teachers');
 
 result = await call('profile/request-rate', { method: 'POST', cookie: teacher.cookie, body: { rate: 850 } });
 equal(result.status, 200, 'Teacher submits price request');
@@ -142,13 +148,56 @@ const newQuote = result.data.listings.find(x => x.id === teacher.data.id);
 equal(newQuote.baseRate, 850, 'Approved custom teacher base survives policy update');
 ok(newQuote.travelFee >= 75, 'Updated travel policy applies');
 
-result = await call('workspaces/teacher/listings/' + student.data.id + '/interest', { method: 'PUT', cookie: teacher.cookie });
-equal(result.status, 200, 'Teacher can express interest');
-equal(result.data.status, 'sent');
-result = await call('workspaces/student/listings/' + teacher.data.id + '/interest', { method: 'PUT', cookie: student.cookie });
-equal(result.data.status, 'matched', 'Mutual interest creates match');
-result = await call('workspaces/student/connections', { cookie: student.cookie });
-ok(result.data.some(x => x.listing.id === teacher.data.id && x.status === 'matched'), 'Student can see match');
+const requested = await call('workspaces/student/bookings', { method: 'POST', cookie: student.cookie,
+  body: {
+    teacherId: teacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60,
+    note: 'Please help me with algebra.',
+  },
+});
+equal(requested.status, 201, 'Students initiate class bookings');
+equal(requested.data.status, 'pending', 'Booking awaits tutor approval');
+equal(requested.data.studentName, 'Student One', 'Booking shares the student name');
+ok(!('location' in requested.data) && !('homeArea' in requested.data),
+  'Booking never discloses student location');
+result = await call('workspaces/teacher/bookings', { cookie: teacher.cookie });
+equal(result.status, 200, 'Tutor receives only direct booking requests');
+ok(result.data.some(x => x.id === requested.data.id), 'Tutor sees student request');
+ok(!JSON.stringify(result.data).includes('rajgarh') && !JSON.stringify(result.data).includes('26.'),
+  'Tutor booking response contains no student location coordinates');
+result = await call('workspaces/teacher/connections/' + student.data.id + '/classroom', { cookie: teacher.cookie });
+equal(result.status, 403, 'No classroom access before teacher approval');
+result = await call('workspaces/student/bookings', { method: 'POST', cookie: student.cookie,
+  body: {
+    teacherId: teacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60,
+  },
+});
+equal(result.status, 409, 'Duplicate pending booking is rejected');
+result = await call('workspaces/student/bookings/' + requested.data.id, { method: 'PUT', cookie: student.cookie,
+  body: { decision: 'accept' },
+});
+equal(result.status, 403, 'Student cannot accept own request');
+result = await call('workspaces/teacher/bookings/' + requested.data.id, { method: 'PUT', cookie: teacher.cookie,
+  body: { decision: 'accept' },
+});
+equal(result.status, 200, 'Teacher can accept request');
+equal(result.data.status, 'accepted');
+result = await call('workspaces/teacher/bookings/' + requested.data.id, { method: 'PUT', cookie: teacher.cookie,
+  body: { decision: 'reject' },
+});
+equal(result.status, 409, 'Decision is final for an accepted booking');
+result = await call('workspaces/student/bookings', { cookie: student.cookie });
+ok(result.data.some(x => x.id === requested.data.id && x.status === 'accepted'),
+  'Student sees accepted booking');
+
+result = await call('workspaces/teacher/classrooms', { cookie: teacher.cookie });
+equal(result.status, 200, 'Teacher lists only accepted classrooms');
+const tutorSummary = result.data.find(x => x.partner.id === student.data.id);
+ok(tutorSummary, 'Accepted student appears in tutor classroom list');
+equal(tutorSummary.partner.locality, '', 'Classroom response hides student locality');
+equal(tutorSummary.partner.location.lat, 0, 'Classroom response does not reveal student coordinates');
+equal(tutorSummary.partner.description, '', 'Classroom response hides student's discovery description');
 
 const route = 'workspaces/teacher/connections/' + student.data.id + '/classroom';
 result = await call(route + '/sessions', { method: 'POST', cookie: teacher.cookie,
