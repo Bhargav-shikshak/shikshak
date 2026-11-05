@@ -11,17 +11,11 @@
 import type { DemoState } from '../../demo/api';
 import { demoApi, initialState } from '../../demo/api';
 import type { PublicAccount, Role } from '../../shared/domain';
+import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
 const STATE_KEY = 'shikshak.browser-pilot.v1';
 const SESSION_KEY = 'shikshak.browser-pilot.session.v1';
 const ADMIN_SEED_KEY = 'shikshak-local-demo-bootstrap-for-testing-only';
-export const DEMO_PASSWORD = 'ShikshakDemo2026!';
-
-export const demoAccounts = {
-  student: { name: 'Aditi Das', email: 'student@shikshak.demo' },
-  teacher: { name: 'Arjun Bora', email: 'teacher@shikshak.demo' },
-  admin: { name: 'Demo Administrator', email: 'admin@shikshak.demo' },
-} as const;
 
 type DemoInput = {
   name: string;
