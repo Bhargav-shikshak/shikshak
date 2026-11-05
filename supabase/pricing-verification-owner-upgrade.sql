@@ -71,14 +71,7 @@ begin
   update shikshak_private.profiles set data=me.data where id=uid;
   return shikshak_private.profile(me);
  end if;
- if p=array['profile','request-rate'] and method='POST' then
-  n=(input->>'rate')::numeric;
-  if me.role<>'teacher' then perform shikshak_private.fail('Only teachers can request rate changes.',403); end if;
-  if n is null or n<>trunc(n) or n<100 or n>10000 then perform shikshak_private.fail('Choose a rate from ₹100 to ₹10,000.'); end if;
-  me.data=me.data||jsonb_build_object('requestedRate',n,'rateStatus','pending');
-  update shikshak_private.profiles set data=me.data where id=uid;
-  return shikshak_private.profile(me);
- end if;
+ -- Deprecated rate approvals removed. Teacher rates are updated directly in their own listings.
  if p=array['admin','bootstrap'] and method='POST' then
   perform pg_advisory_xact_lock(737124976);
   if exists(select 1 from shikshak_private.profiles where role in ('admin','owner')) then perform shikshak_private.fail('Platform leadership is already configured. Ask an owner to grant access.',409); end if;
@@ -100,6 +93,7 @@ begin
   end if;
   if p=array['admin','pricing'] and method='PUT' then
    if me.role<>'owner' then perform shikshak_private.fail('Only an owner can change the travel pricing policy.',403); end if;
+   if coalesce(auth.jwt()->>'aal','aal1')<>'aal2' then perform shikshak_private.fail('Complete owner two-factor authentication before changing pricing.',403); end if;
    if not (input ?& array['freeRadiusKm','distanceStepKm','stepFee','maxTravelFee']) then perform shikshak_private.fail('Complete all travel pricing fields.'); end if;
    if (input->>'freeRadiusKm')::numeric not between 0 and 100 or
    (input->>'distanceStepKm')::numeric not between 0.1 and 100 or (input->>'stepFee')::numeric not between 0 and 5000 or
@@ -114,9 +108,11 @@ if p[2]='accounts' and array_length(p,1)=4 and method='PUT' then
    if target.id is null then perform shikshak_private.fail('Account not found.',404); end if;
    if p[4]='role' then
      if me.role<>'owner' then perform shikshak_private.fail('Only owners can change staff roles.',403); end if;
+     if coalesce(auth.jwt()->>'aal','aal1')<>'aal2' then perform shikshak_private.fail('Complete owner two-factor authentication before changing staff roles.',403); end if;
      if target.id=uid then perform shikshak_private.fail('You cannot change your own owner role.',403); end if;
      if input->>'action'='make-owner' or input->>'action'='make-admin' then
        if not target.active then perform shikshak_private.fail('Reactivate the member before assigning staff access.',409); end if;
+       if not exists(select 1 from auth.users where id=target.id and email_confirmed_at is not null) then perform shikshak_private.fail('Confirm this member email before assigning staff access.',403); end if;
        if target.role in ('student','teacher') then
          update shikshak_private.profiles set data=data||jsonb_build_object('baseRole',target.role) where id=target.id;
        end if;
