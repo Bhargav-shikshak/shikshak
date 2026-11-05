@@ -3,7 +3,7 @@ import { ArrowDownWideNarrow, BookOpen, ChevronDown, GraduationCap, Heart, List,
 import { defaultFilters, type Catalog, type DiscoveryListing, type Filters, type Role } from '../../shared/domain';
 import { api } from '../api';
 import { useResource } from '../useResource';
-import { ErrorNotice, ListingCard, ListingDetails, Modal } from './Common';
+import { ErrorNotice, ListingCard, ListingDetails, Modal, money } from './Common';
 import { DiscoveryMap } from './DiscoveryMap';
 
 interface ExploreProps {
