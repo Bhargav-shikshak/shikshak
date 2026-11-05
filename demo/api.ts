@@ -344,6 +344,8 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     const name = cleanText(data.name, 60);
     const localityId = cleanText(data.localityId, 60) || me.localityId;
     if (!name || !catalog.localities.some(x => x.id === localityId)) return fail('Choose a name and home location.');
+    if (localityId !== me.localityId)
+      return fail('Home location must be updated using the map marker, not the old neighbourhood selector.');
     const wantsNewArea = data.homeArea !== undefined;
     const newArea = wantsNewArea ? validHomeArea(data.homeArea) : null;
     if (wantsNewArea && !newArea) return fail('Place a marker and provide a valid city and locality.');
