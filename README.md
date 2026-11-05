@@ -41,7 +41,7 @@ npm run test:browser-demo
 npm run preview
 ~~~
 
-The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, login, signup, discovery, role separation, classrooms, approvals, persistence and reset without network calls. GitHub Actions runs both tests on main.
+The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, normal and quick signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. GitHub Actions runs both tests on main.
 
 ## Browser-only demo (default)
 
@@ -57,7 +57,13 @@ Demo login shortcuts are shown on the sign-in screen. Click one and then select 
 
 Additional demo profiles **Meghna** (teacher) and **Rohan** (student) are discoverable. Aditi and Arjun are already mutually matched and have upcoming algebra/physics classes, two lesson notes and homework including one submitted assignment waiting for tutor feedback. Meghna has a pending custom-rate request for the administrator to approve or reject. Fictional **Preview** map listings are still available but cannot be messaged or matched; the seeded accounts can.
 
-To create another account, use **Sign up** with invented details and a test-only password. Use **Log out** to switch between student, teacher and administrator in the **same browser**. The **Reset local demo accounts and data** control on the login screen removes this site's Shikshak browser-demo state and recreates the sample data on the next visit.
+To create a personal test account, use **Sign up** with invented details and a test-only password. Alternatively, while signed in, open **Test accounts** in the demo bar and choose **Create a test student or teacher**. You only need to provide a name, account type, neighbourhood, subject and class level. Shikshak generates a unique fictional email and test password and publishes a starter listing automatically, so the account is discoverable immediately.
+
+The **Test accounts** switcher displays **all** browser-local registrations (not just the preloaded demo users) alongside the demo administrator. Clicking **Switch** changes the signed-in identity without entering credentials again. Teacher/student dashboards, matching, chat, classroom, and admin data are reloaded for the newly selected account, including switches between two accounts of the same role. Quick-created accounts use the shared demo password `ShikshakDemo2026!` if you later use the normal login form.
+
+For a two-sided test: switch to an account, send interest in **Explore**, switch to the counterpart and choose **Match back** under **Matches**. Then open **Message** to exchange messages, or **Classroom** to schedule lessons, share notes, and submit/review homework. Both users see the same browser-local data as you switch.
+
+The **Reset local demo accounts and data** control on the login screen removes this site's Shikshak browser-demo state and recreates the original sample data on the next visit. Other tabs for the same website share browser storage and the active local demo identity, so do sequential account tests in one tab rather than expecting independent simultaneous logins.
 
 LocalStorage is **not secure authentication**, and its contents can be modified by the browser user. This mode is strictly for interface and workflow testing. No signup data or classroom changes are sent to Shikshak's remote backend; there is no cross-browser sync and no migration of demo data into a future production database.
 
