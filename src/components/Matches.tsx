@@ -45,7 +45,7 @@ function Conversation({ listing, catalog, role, currentUserId, close }: { listin
     <div className="detail-identity"><Avatar listing={listing}/><div><p className="eyebrow">MUTUAL MATCH</p><h2>{listing.name}</h2></div></div>
     <div className="message-list" ref={messageList} aria-live="polite">
       {error ? <ErrorNotice message={error} retry={refresh}/> : !data ? <p>Loading conversation…</p> : data.length === 0
-        ? <div className="chat-empty"><MessageCircle size={24}/><p>Say hello and ask about subjects, timing, or how a first lesson could work.</p>{catalog.demo && !Object.values(catalog.workspaces).some((workspace) => workspace.id === listing.id) && <small>This fictional profile won’t send replies.</small>}</div>
+        ? <div className="chat-empty"><MessageCircle size={24}/><p>Say hello and ask about subjects, timing, or how a first lesson could work.</p>{listing.fictional && <small>This fictional profile won’t send replies.</small>}</div>
         : data.map((message) => <div className={'message' + (message.authorId === currentUser ? ' mine' : '')} key={message.authorId + ':' + message.id}>
           <p>{message.body}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</time>
         </div>)}
