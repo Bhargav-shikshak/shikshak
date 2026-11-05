@@ -27,5 +27,7 @@ jobs:
         run: npm run test:browser-demo
       - name: Verify browser PDF note uploads, teacher/student access and cleanup
         run: npm run test:pdf-notes
+      - name: Verify city/locality reverse geocoding and coarse pins
+        run: npm run test:home-area
       - name: Validate Cloudflare Worker bundle without deploying
         run: npx --yes wrangler@4 deploy --dry-run --outdir .wrangler/dry-run
