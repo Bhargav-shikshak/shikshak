@@ -3,7 +3,7 @@ import type {
   DiscoveryListing, Homework, LessonNote, Listing, ListingDraft, Message, Point,
   PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
-import { catalog, seedListings } from './seed';
+import { catalog } from './seed';
 
 interface Account extends PublicAccount { salt: string; passwordHash: string }
 interface Session { userId: string; expiresAt: number }
@@ -96,8 +96,8 @@ function statusFor(state: DemoState, me: string, other: string): ConnectionStatu
   return outgoing ? 'sent' : null;
 }
 function allListings(state: DemoState) {
-  // Fictional example profiles are labelled and cannot receive real classroom activity.
-  return [...seedListings.map(x => ({ ...x, fictional: true })), ...Object.values(state.own)];
+  // All visible profiles are backed by persisted accounts/listings, never render-time fixtures.
+  return Object.values(state.own);
 }
 function enrich(state: DemoState, listing: Listing): Listing {
   const account = state.accounts[listing.id];
