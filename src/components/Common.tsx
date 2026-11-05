@@ -46,7 +46,7 @@ export function ListingCard({ item, selected, busy, onOpen, onSave }: {
 }) {
   return <article className={'listing-card' + (selected ? ' selected-card' : '')} id={'card-' + item.id}>
     <div className="card-top"><Avatar listing={item}/><button className={'icon-button save-button' + (item.saved ? ' is-saved' : '')} type="button" aria-label={(item.saved ? 'Unsave ' : 'Save ') + item.name} aria-pressed={item.saved} disabled={busy} onClick={onSave}><Heart size={18}/></button></div>
-    <h3>{item.name}{item.fictional && <small className="fictional-pill">Preview</small>}</h3><p className="card-headline">{item.headline}</p>
+    <h3>{item.name}</h3><p className="card-headline">{item.headline}</p>
     <div className="card-location"><MapPin size={14}/>{item.locality}<span>·</span>{item.distance < .15 ? 'Nearby' : item.distance.toFixed(1) + ' km'}</div>
     <div className="subject-tags">{item.subjects.slice(0, 2).map((subject) => <span key={subject}>{subject}</span>)}
       {item.subjects.length > 2 && <span aria-label={(item.subjects.length - 2) + ' more subjects'}>+{item.subjects.length - 2}</span>}</div>
@@ -60,7 +60,6 @@ export function ListingDetails({ listing, status, busy, onInterest, onChat }: {
 }) {
   return <>
     <div className="detail-identity"><Avatar listing={listing} large/><div><p className="eyebrow">{listing.role === 'teacher' ? 'TUTOR PROFILE' : 'LEARNER LISTING'}</p><h2>{listing.name}</h2><p>{listing.headline}</p></div></div>
-    {listing.fictional && <p className="preview-notice">This fictional demonstration profile is for browsing only. Real accounts can match and use classrooms.</p>}
     <div className="detail-meta"><span><MapPin size={16}/>{listing.locality}</span><span><Clock3 size={16}/>{listing.availability}</span><span><GraduationCap size={17}/>{listing.grades.join(', ')}</span></div>
     <h3>About</h3><p className="detail-about">{listing.description}</p>
     {listing.role === 'student' && (listing.weakSubjects?.length ?? 0) > 0 && <><h3>Needs help with</h3><div className="subject-tags detail-tags">{listing.weakSubjects?.map(subject => <span key={subject}>{subject}</span>)}</div></>}
@@ -69,7 +68,7 @@ export function ListingDetails({ listing, status, busy, onInterest, onChat }: {
     <h3>Subjects</h3><div className="subject-tags detail-tags">{listing.subjects.map((subject) => <span key={subject}><BookOpen size={13}/>{subject}</span>)}</div>
     <div className="detail-footer"><div><strong>{money(listing.rate)}</strong><span> / hr{listing.role === 'student' ? ' budget' : ''}</span>{listing.role === 'teacher' && 'baseRate' in listing && <small className="price-explanation">Base {money((listing as DiscoveryListing).baseRate ?? listing.rate)} + travel {money((listing as DiscoveryListing).travelFee ?? 0)}</small>}</div>
       {status === 'matched' ? <button className="primary-button" onClick={onChat}>Open conversation <ArrowUpRight size={17}/></button>
-        : <button className="primary-button" disabled={busy || status === 'sent' || !!listing.fictional} onClick={onInterest}><Heart size={17}/>{listing.fictional ? 'Preview only' : status === 'sent' ? 'Interest sent' : status === 'incoming' ? 'Match back' : 'Send interest'}</button>}</div>
+        : <button className="primary-button" disabled={busy || status === 'sent'} onClick={onInterest}><Heart size={17}/>{status === 'sent' ? 'Interest sent' : status === 'incoming' ? 'Match back' : 'Send interest'}</button>}</div>
     <p className="detail-privacy">{status === 'matched' ? 'You both expressed interest.' : 'Messaging opens when you both express interest.'} Map pins show neighbourhoods.</p>
   </>;
 }
