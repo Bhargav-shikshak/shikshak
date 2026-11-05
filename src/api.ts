@@ -6,6 +6,9 @@ import type {
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
 const root = (env?.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '');
+// Local browser demonstration is the default until a real backend is connected.
+// Set VITE_SERVICE_MODE=api to use the existing Cloudflare/HTTP API instead.
+export const isBrowserDemo = env?.VITE_SERVICE_MODE !== 'api';
 const workspace = (role: Role) => '/workspaces/' + role;
 const roomPath = (role: Role, partnerId: string) =>
   workspace(role) + '/connections/' + encodeURIComponent(partnerId) + '/classroom';
@@ -13,13 +16,15 @@ const roomPath = (role: Role, partnerId: string) =>
 async function request<T>(path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(root + path, {
-      method: options.method,
-      signal: options.signal,
-      credentials: 'include',
-      headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
+    response = isBrowserDemo
+      ? await (await import('./services/browserDemo')).browserDemoRequest(path, options)
+      : await fetch(root + path, {
+          method: options.method,
+          signal: options.signal,
+          credentials: 'include',
+          headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+          body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        });
   } catch (error) {
     if (options.signal?.aborted) throw error;
     throw new Error('Could not reach Shikshak. Check your connection and try again.');
