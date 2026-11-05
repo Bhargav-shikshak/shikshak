@@ -18,8 +18,8 @@ export function Classroom({ role, partnerId, back, message }: {
 }) {
   const load = useCallback((signal: AbortSignal) => api.classroom(role, partnerId, signal), [role, partnerId]);
   const { data, error, refresh } = useResource(load);
-  const peers = useResource(useCallback((signal: AbortSignal) => api.connections(role, signal), [role]));
-  const peer = peers.data?.find(connection => connection.listing.id === partnerId)?.listing;
+  const peers = useResource(useCallback((signal: AbortSignal) => api.classrooms(role, signal), [role]));
+  const peer = peers.data?.find(summary => summary.partner.id === partnerId)?.partner;
   const [section, setSection] = useState<'classes' | 'notes' | 'homework'>('classes');
   const [busy, setBusy] = useState('');
   const [actionError, setActionError] = useState('');
@@ -102,13 +102,13 @@ export function Classroom({ role, partnerId, back, message }: {
   const sortedHomework = [...(data?.homework ?? [])].sort((a, b) => a.dueAt.localeCompare(b.dueAt));
   return <main id="main" className="workspace-page classroom-page">
     <div className="classroom-topbar">
-      <button type="button" className="secondary-button" onClick={back}><ArrowLeft size={17}/> Back to matches</button>
+      <button type="button" className="secondary-button" onClick={back}><ArrowLeft size={17}/> Back to classes</button>
       <button type="button" className="secondary-button" onClick={() => message(partnerId)}><MessageCircle size={17}/> Messages</button>
     </div>
     <div className="workspace-heading">
       <p className="eyebrow hero-eyebrow"><span/> SHARED LEARNING SPACE</p>
       <h1>{peer ? peer.name : 'Your classroom'}.</h1>
-      <p>{role === 'teacher' ? 'Schedule classes, share notes and review your student’s homework.' : 'See your timetable, read notes and turn in homework for feedback.'} Only matched accounts can access this classroom.</p>
+      <p>{role === 'teacher' ? 'Schedule classes, share notes and review your student’s homework.' : 'See your timetable, read notes and turn in homework for feedback.'} Only accepted bookings can access this classroom.</p>
     </div>
     {error && <ErrorNotice message={error} retry={refresh}/>}
     {peers.error && <ErrorNotice message={peers.error} retry={peers.refresh}/>}
@@ -174,7 +174,7 @@ export function Classroom({ role, partnerId, back, message }: {
                   {notePdf && <div className="classroom-selected-pdf"><span>{notePdf.name} · {(notePdf.size / (1024 * 1024)).toFixed(2)} MB</span>
                     <button type="button" aria-label="Remove selected PDF" onClick={() => { setNotePdf(null); if (pdfInput.current) pdfInput.current.value = ''; }}><X size={16}/></button>
                   </div>}
-                  <small>PDFs are stored on this browser only. They will be available when you switch between matched demo accounts here.</small>
+                  <small>PDFs are stored on this browser only. They will be available when you switch between accepted demo accounts here.</small>
                 </div> : <p className="classroom-file-warning">PDF uploads will be enabled after backend file storage is connected. Text notes still work.</p>}
                 <button type="submit" className="primary-button" disabled={!!busy || (!noteBody.trim() && !notePdf)}>Share note{notePdf ? ' and PDF' : ''}</button>
               </form>
@@ -231,7 +231,7 @@ export function Classroom({ role, partnerId, back, message }: {
                     <button type="button" aria-label="Remove selected worksheet PDF" onClick={() => {
                       setAssignmentPdf(null); if (assignmentPdfInput.current) assignmentPdfInput.current.value = '';
                     }}><X size={16}/></button></div>}
-                  <small>The student can view or download this worksheet from their matched classroom.</small>
+                  <small>The student can view or download this worksheet from their accepted classroom.</small>
                 </div> : <p className="classroom-file-warning">PDF worksheets need backend file storage. Text assignments still work.</p>}
                 <label>Due date<input type="datetime-local" required value={dueAt} onChange={event => setDueAt(event.target.value)}/></label>
                 <button className="primary-button" type="submit" disabled={!!busy || (!instructions.trim() && !assignmentPdf)}>Assign homework{assignmentPdf ? ' with PDF' : ''}</button>
