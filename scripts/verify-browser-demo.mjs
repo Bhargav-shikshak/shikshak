@@ -248,7 +248,7 @@ assert.equal(Object.keys(migratedState.classrooms).length, oldClassroomCount, 'E
 result = await call('/auth/me');
 assert.equal(result.data.role, 'admin', 'Existing active local session survives migration');
 
-resetBrowserDemo();
+await resetBrowserDemo();
 assert.equal(data.size, 0, 'Reset removes only browser-demo keys in an otherwise empty store');
 result = await call('/auth/me');
 assert.equal(result.status, 401, 'Reset re-seeds without an active session');
