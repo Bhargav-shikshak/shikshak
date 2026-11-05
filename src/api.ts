@@ -1,7 +1,7 @@
 import type {
   AdminSnapshot, Catalog, ClassSession, Classroom, ClassroomSummary, Connection,
   ConnectionStatus, Discovery, Filters, Homework, LessonNote, Listing, ListingDraft,
-  Message, PriceSettings, PublicAccount, Role,
+  Message, PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
@@ -81,8 +81,35 @@ export const api = {
     request<ClassSession>(roomPath(role, partnerId) + '/sessions', { method: 'POST', body: data }),
   sessionStatus: (role: Role, partnerId: string, id: string, status: 'completed' | 'cancelled') =>
     request<ClassSession>(roomPath(role, partnerId) + '/sessions/' + encodeURIComponent(id) + '/status', { method: 'PUT', body: { status } }),
-  note: (role: Role, partnerId: string, title: string, content: string) =>
-    request<LessonNote>(roomPath(role, partnerId) + '/notes', { method: 'POST', body: { title, content } }),
+  note: (role: Role, partnerId: string, title: string, content: string, pdf?: PdfNoteAttachment) =>
+    request<LessonNote>(roomPath(role, partnerId) + '/notes', {
+      method: 'POST', body: { title, content, ...(pdf ? { pdf } : {}) },
+    }),
+  sharePdfNote: async (role: Role, partnerId: string, title: string, content: string, file: File): Promise<LessonNote> => {
+    if (!isBrowserDemo) throw new Error('PDF uploads will be available in API mode after secure file storage is connected.');
+    if (role !== 'teacher') throw new Error('Only teachers can share PDF notes.');
+    // Verify an active teacher/student match before writing binary data.
+    await api.classroom(role, partnerId);
+    const storage = await import('./services/pdfNotes');
+    const pdf = await storage.savePdfNote(file);
+    try {
+      return await api.note(role, partnerId, title, content, pdf);
+    } catch (error) {
+      await storage.deletePdfNote(pdf.id).catch(() => undefined);
+      throw error;
+    }
+  },
+  getNotePdf: async (role: Role, partnerId: string, noteId: string): Promise<Blob> => {
+    if (!isBrowserDemo) throw new Error('PDF viewing requires integrated backend file storage.');
+    // Authorize the current account against the actual matched classroom.
+    const room = await api.classroom(role, partnerId);
+    const pdf = room.notes.find(note => note.id === noteId)?.pdf;
+    if (!pdf) throw new Error('This classroom note has no PDF attached.');
+    const { loadPdfNote } = await import('./services/pdfNotes');
+    const blob = await loadPdfNote(pdf.id);
+    if (!blob) throw new Error('PDF not found in this browser. It may have been cleared from site storage.');
+    return blob;
+  },
   assign: (role: Role, partnerId: string, title: string, instructions: string, dueAt: string) =>
     request<Homework>(roomPath(role, partnerId) + '/homework', { method: 'POST', body: { title, instructions, dueAt } }),
   submitHomework: (role: Role, partnerId: string, id: string, submission: string) =>
