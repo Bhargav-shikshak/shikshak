@@ -246,6 +246,51 @@ async function ensureDemoHistory(state: DemoState): Promise<boolean> {
   return true;
 }
 
+
+/** Existing browser-local accounts and classroom history survive the switch
+ * from reciprocal interest to direct requests. Run this after the old history
+ * fixture has finished writing any legacy interest records. */
+async function prepareDemoBookings(state: DemoState): Promise<boolean> {
+  const version = state as DemoState & { bookingSampleVersion?: number };
+  if (version.bookingSampleVersion === 1) return false;
+  if (state.bookingVersion !== 1) {
+    // Any authenticated API call triggers the one-time legacy match migration.
+    await invoke(state, '/auth/me', 'GET');
+  }
+  state.bookings ??= {};
+  const teacher = Object.values(state.accounts).find(account => account.email === demoAccounts.teacher.email);
+  const students = Object.values(state.accounts).filter(account =>
+    account.role === 'student' && account.email.startsWith('months-student-'));
+  if (teacher) {
+    const existingPairs = new Set(Object.values(state.bookings)
+      .filter(booking => booking.status !== 'rejected' && booking.teacherId === teacher.id)
+      .map(booking => booking.studentId));
+    let made = 0;
+    for (const student of students) {
+      if (existingPairs.has(student.id)) continue;
+      const status = made < 3 ? 'pending' : 'rejected';
+      state.bookings['historical-request-' + made + '-' + teacher.id] = {
+        id: 'historical-request-' + made + '-' + teacher.id,
+        teacherId: teacher.id, studentId: student.id,
+        studentName: student.name, teacherName: teacher.name,
+        subject: 'Mathematics', grade: 'Classes 9–10',
+        startsAt: future(3 + made), durationMinutes: 60,
+        note: ['I would like a regular maths lesson after school.',
+          'Could you help me prepare for the next test?',
+          'Looking for practical help with algebra.',
+          'Requesting a weekend maths session.'][made],
+        quotedRate: state.pricing.baseRate, status,
+        createdAt: new Date(Date.now() - (made + 1) * 86400000).toISOString(),
+        respondedAt: status === 'rejected' ? new Date().toISOString() : null,
+      };
+      made++;
+      if (made === 4) break;
+    }
+  }
+  version.bookingSampleVersion = 1;
+  return true;
+}
+
 async function seedBrowserDemo(): Promise<DemoState> {
   const state = initialState();
   const members: { account: PublicAccount; token: string; role: Role }[] = [];
@@ -287,9 +332,15 @@ async function seedBrowserDemo(): Promise<DemoState> {
   // One sample tutor has a pending custom base rate for testing approvals.
   await checked(state, '/profile/request-rate', 'POST', { rate: 675 }, otherTeacher.token);
 
-  // Seed one real mutual relationship, so both roles can explore the classroom.
-  await checked(state, '/workspaces/teacher/listings/' + student.account.id + '/interest', 'PUT', undefined, teacher.token);
-  await checked(state, '/workspaces/student/listings/' + teacher.account.id + '/interest', 'PUT', undefined, student.token);
+  // Seed an accepted first-class request; subsequent activities share the classroom.
+  const initialBooking = await checked(state, '/workspaces/student/bookings', 'POST', {
+    teacherId: teacher.account.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: future(1), durationMinutes: 60,
+    note: 'I would like help with algebra and the upcoming assessment.',
+  }, student.token) as { id: string };
+  await checked(state, '/workspaces/teacher/bookings/' + initialBooking.id, 'PUT', {
+    decision: 'accept',
+  }, teacher.token);
 
   const teacherRoom = '/workspaces/teacher/connections/' + student.account.id + '/classroom';
   const studentRoom = '/workspaces/student/connections/' + teacher.account.id + '/classroom';
@@ -327,6 +378,10 @@ async function seedBrowserDemo(): Promise<DemoState> {
   // Former UI-only profiles are now regular accounts that can match and chat.
   await ensureDemoFixtureAccounts(state);
   await ensureDemoHistory(state);
+  // Historical demo generation uses the old interest fixture format; migrate
+  // those reciprocal pairs to accepted bookings before the demo is first shown.
+  state.bookingVersion = 0;
+  await prepareDemoBookings(state);
   // Fixture tokens are not an active login. Visitors choose or create an account.
   state.sessions = {};
   void adminToken;
@@ -378,7 +433,9 @@ async function loadOrSeedState(): Promise<DemoState> {
     // homework are never cleared when a newer demo dataset is installed.
     const fixturesUpdated = await ensureDemoFixtureAccounts(state);
     const historyUpdated = await ensureDemoHistory(state);
-    if (fixturesUpdated || historyUpdated) storeState(state);
+    if (historyUpdated) state.bookingVersion = 0;
+    const bookingsUpdated = await prepareDemoBookings(state);
+    if (fixturesUpdated || historyUpdated || bookingsUpdated) storeState(state);
   }
   return state;
 }
