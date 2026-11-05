@@ -62,7 +62,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
     <label>Availability<input required maxLength={100} value={draft.availability} onChange={event => update('availability', event.target.value)} placeholder="e.g. Weekday evenings"/></label>
     <label>{isTutor ? 'About your teaching' : 'What kind of help do you need?'}<textarea required maxLength={700} rows={4} value={draft.description}
       onChange={event => update('description', event.target.value)} placeholder={isTutor ? 'Describe your approach and what you teach.' : 'Share your goals and the schedule you have in mind.'}/></label>
-    {!isTutor && <p className="field-help">You can also record your stronger and weaker subjects in Profile. Tutors will see them when considering a match.</p>}
+    {!isTutor && <p className="field-help">You can also record your stronger and weaker subjects in Profile. Only you can see your learning profile until you request a class.</p>}
     <div className="notice privacy-note"><ShieldCheck size={20}/><span>Only your neighbourhood is shown on the map. Do not include your address, phone or private contact details.</span><MapPin size={18}/></div>
     {error && <ErrorNotice message={error}/>}
     <div className="form-actions">
