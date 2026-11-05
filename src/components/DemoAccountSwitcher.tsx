@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, Check, ChevronDown, Plus, Users, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Plus, Search, Users, X } from 'lucide-react';
 import type { Catalog, PublicAccount, Role } from '../../shared/domain';
 import {
   createBrowserDemoAccount,
@@ -20,6 +20,7 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [accounts, setAccounts] = useState<BrowserDemoAccount[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -28,6 +29,13 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
   const [localityId, setLocalityId] = useState(catalog.defaultLocality);
   const [subject, setSubject] = useState(catalog.subjects[0] ?? 'Mathematics');
   const [grade, setGrade] = useState(catalog.grades[2] ?? catalog.grades[0] ?? '');
+
+  const filteredAccounts = accounts.filter(account => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const area = catalog.localities.find(place => place.id === account.localityId)?.name ?? '';
+    return [account.name, account.email, account.role, area].some(value => value.toLowerCase().includes(term));
+  }).sort((a, b) => (a.id === current.id ? -1 : b.id === current.id ? 1 : 0));
 
   useEffect(() => {
     if (!open) return;
@@ -99,13 +107,18 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
       onClick={() => setOpen(value => !value)}><Users size={16}/> Test accounts <ChevronDown size={15}/></button>
     {open && <section className="demo-switcher-panel" id="demo-switcher-panel" aria-label="Browser demo accounts">
       <div className="demo-switcher-heading">
-        <div><strong>Switch test account</strong><p>All accounts share this browser's demo data.</p></div>
+        <div><strong>Switch test account</strong><p>{accounts.length} local accounts · shared history in this browser</p></div>
         <button type="button" aria-label="Close account switcher" onClick={() => setOpen(false)}><X size={18}/></button>
       </div>
       {error && <ErrorNotice message={error}/>}
+      {!loading && <label className="demo-switcher-search"><Search size={16} aria-hidden="true"/>
+        <input type="search" value={search} onChange={event => setSearch(event.target.value)}
+          placeholder="Find a name, role or neighbourhood" aria-label="Search local demo accounts"/>
+      </label>}
       {loading && <p role="status" className="demo-switcher-status">Loading local accounts…</p>}
       {!loading && <div className="demo-switcher-accounts" aria-label="Local account list">
-        {accounts.map(account =>
+        {filteredAccounts.length === 0 && <p className="demo-switcher-status">No matching demo account. Try another name or location.</p>}
+        {filteredAccounts.map(account =>
           <button key={account.id} type="button" className={'demo-switcher-account' + (current.id === account.id ? ' is-current' : '')}
             disabled={!!busy || !account.active || current.id === account.id}
             onClick={() => void switchTo(account.id)}>
