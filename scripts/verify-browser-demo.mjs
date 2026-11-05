@@ -229,6 +229,25 @@ await switchBrowserDemoAccount(adminAccount.id);
 result = await call('/admin');
 assert.equal(result.status, 200, 'Demo switcher can enter simulated admin console');
 
+// Simulate upgrading an existing browser with old preview-only listings.
+// The migration must reconstruct profiles and keep account/classroom data.
+const storedKey = 'shikshak.browser-pilot.v1';
+const oldLocal = JSON.parse(data.get(storedKey));
+delete oldLocal.fixtureVersion;
+delete oldLocal.accounts['t-rahul'];
+delete oldLocal.own['t-rahul'];
+oldLocal.saves[originalNewStudent.id] = ['t-rahul'];
+const oldClassroomCount = Object.keys(oldLocal.classrooms).length;
+data.set(storedKey, JSON.stringify(oldLocal));
+const upgraded = await listBrowserDemoAccounts();
+assert.ok(upgraded.some(x => x.id === 't-rahul' && x.published), 'Old preview migrates to a real account');
+assert.ok(upgraded.some(x => x.id === originalNewStudent.id), 'Previously created local student is preserved');
+const migratedState = JSON.parse(data.get(storedKey));
+assert.equal(migratedState.saves[originalNewStudent.id][0], 't-rahul', 'Saved profile references remain valid');
+assert.equal(Object.keys(migratedState.classrooms).length, oldClassroomCount, 'Existing classroom history survives migration');
+result = await call('/auth/me');
+assert.equal(result.data.role, 'admin', 'Existing active local session survives migration');
+
 resetBrowserDemo();
 assert.equal(data.size, 0, 'Reset removes only browser-demo keys in an otherwise empty store');
 result = await call('/auth/me');
