@@ -344,9 +344,7 @@ async function seedBrowserDemo(): Promise<DemoState> {
 
   const teacherRoom = '/workspaces/teacher/connections/' + student.account.id + '/classroom';
   const studentRoom = '/workspaces/student/connections/' + teacher.account.id + '/classroom';
-  await checked(state, teacherRoom + '/sessions', 'POST', {
-    title: 'Algebra revision', startsAt: future(1), durationMinutes: 60,
-  }, teacher.token);
+  // The accepted booking itself schedules the first mathematics class.
   await checked(state, teacherRoom + '/sessions', 'POST', {
     title: 'Motion and forces', startsAt: future(3), durationMinutes: 75,
   }, teacher.token);
