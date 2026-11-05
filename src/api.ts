@@ -14,10 +14,10 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
     });
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    throw new Error('Could not reach Studylane. Check your connection and try again.');
+    throw new Error('Could not reach Shikshak. Check your connection and try again.');
   }
   const data = await response.json().catch(() => undefined);
-  if (!response.ok || data === undefined) throw new Error(data?.message ?? 'The Studylane API could not complete this request.');
+  if (!response.ok || data === undefined) throw new Error(data?.message ?? 'The Shikshak API could not complete this request.');
   return data as T;
 }
 
