@@ -419,6 +419,7 @@ export interface BrowserDemoAccount {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   localityId: string;
+  homeArea?: HomeArea;
   active: boolean;
   published: boolean;
 }
@@ -442,6 +443,7 @@ export function listBrowserDemoAccounts(): Promise<BrowserDemoAccount[]> {
         email: account.email,
         role: account.role,
         localityId: account.localityId,
+        ...(account.homeArea ? { homeArea: account.homeArea } : {}),
         active: account.active,
         published: state.own[account.id]?.published ?? false,
       }))
