@@ -21,7 +21,10 @@ const bundle = await build({
   logLevel: 'silent',
 });
 const moduleUrl = 'data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].contents).toString('base64');
-const { browserDemoRequest, resetBrowserDemo } = await import(moduleUrl);
+const {
+  browserDemoRequest, resetBrowserDemo,
+  listBrowserDemoAccounts, switchBrowserDemoAccount, createBrowserDemoAccount,
+} = await import(moduleUrl);
 
 let assertions = 0;
 async function call(path, { method = 'GET', body } = {}) {
@@ -99,10 +102,105 @@ result = await call('/auth/login', { method: 'POST', body: {
 } });
 assert.equal(result.status, 200, 'Created account persists and can log in again');
 
+// Test the in-app account manager, including a newly created, discoverable profile.
+let profiles = await listBrowserDemoAccounts();
+assert.ok(profiles.some(x => x.email === 'newstudent@example.test'), 'Regular signup also appears in demo switcher');
+assert.ok(profiles.some(x => x.role === 'admin'), 'Demo admin appears in user picker');
+assert.ok(profiles.some(x => x.email === 'teacher@shikshak.demo' && x.published), 'Published tutor appears in picker');
+
+const quickStudent = await createBrowserDemoAccount({
+  name: 'Priya Sharma', role: 'student', localityId: 'ulubari',
+  subject: 'Mathematics', grade: 'Classes 9–10',
+});
+assert.equal(quickStudent.role, 'student');
+result = await call('/auth/me');
+assert.equal(result.data.id, quickStudent.id, 'Quick-create switches to the new user');
+result = await call('/workspaces/student/listing');
+assert.equal(result.data.published, true, 'Quick-created account has a discoverable listing');
+assert.ok(result.data.weakSubjects.includes('Mathematics'), 'Student topic is reflected in profile');
+profiles = await listBrowserDemoAccounts();
+assert.ok(profiles.some(x => x.id === quickStudent.id && x.published), 'New quick profile appears in picker');
+
+const teacherAccount = profiles.find(x => x.email === 'teacher@shikshak.demo');
+const adminAccount = profiles.find(x => x.role === 'admin');
+const originalNewStudent = profiles.find(x => x.email === 'newstudent@example.test');
+assert.ok(teacherAccount && adminAccount && originalNewStudent);
+
+let switched = await switchBrowserDemoAccount(teacherAccount.id);
+assert.equal(switched.role, 'teacher');
+result = await call('/workspaces/teacher/discovery');
+assert.ok(result.data.listings.some(x => x.id === quickStudent.id), 'Teacher can discover new local student');
+result = await call('/workspaces/teacher/listings/' + quickStudent.id + '/interest', { method: 'PUT' });
+assert.equal(result.status, 200, 'Teacher can send interest to new local student');
+
+switched = await switchBrowserDemoAccount(quickStudent.id);
+assert.equal(switched.id, quickStudent.id);
+result = await call('/workspaces/student/connections');
+assert.ok(result.data.some(x => x.listing.id === teacherAccount.id && x.status === 'incoming'), 'Student receives the interest');
+result = await call('/workspaces/student/listings/' + teacherAccount.id + '/interest', { method: 'PUT' });
+assert.equal(result.data.status, 'matched', 'Student matches the tutor back');
+result = await call('/workspaces/student/connections/' + teacherAccount.id + '/messages', {
+  method: 'POST',
+  body: { id: crypto.randomUUID(), body: 'Can we schedule our maths class?' },
+});
+assert.equal(result.status, 201, 'Student can send a real matching conversation message');
+
+await switchBrowserDemoAccount(teacherAccount.id);
+result = await call('/workspaces/teacher/connections/' + quickStudent.id + '/messages');
+assert.ok(result.data.some(x => x.body.includes('maths class')), 'Tutor sees message after account switch');
+const teacherRoom = '/workspaces/teacher/connections/' + quickStudent.id + '/classroom';
+const studentRoom = '/workspaces/student/connections/' + teacherAccount.id + '/classroom';
+result = await call(teacherRoom + '/sessions', {
+  method: 'POST', body: {
+    title: 'First maths class',
+    startsAt: new Date(Date.now() + 86400000).toISOString(),
+    durationMinutes: 60,
+  },
+});
+assert.equal(result.status, 201, 'Tutor can schedule a class for new match');
+result = await call(teacherRoom + '/notes', {
+  method: 'POST', body: { title: 'Welcome notes', content: 'Bring your latest maths homework.' },
+});
+assert.equal(result.status, 201, 'Tutor can share class notes');
+result = await call(teacherRoom + '/homework', {
+  method: 'POST', body: {
+    title: 'Fractions practice', instructions: 'Complete exercises 1 to 5.',
+    dueAt: new Date(Date.now() + 172800000).toISOString(),
+  },
+});
+assert.equal(result.status, 201, 'Tutor can assign homework');
+const homeworkId = result.data.id;
+await switchBrowserDemoAccount(quickStudent.id);
+result = await call(studentRoom);
+assert.equal(result.data.sessions.length, 1, 'Student sees scheduled class');
+assert.equal(result.data.notes.length, 1, 'Student sees shared notes');
+result = await call(studentRoom + '/homework/' + homeworkId + '/submit', {
+  method: 'PUT', body: { submission: 'I finished exercises 1 to 5.' },
+});
+assert.equal(result.status, 200, 'Student can submit homework');
+await switchBrowserDemoAccount(teacherAccount.id);
+result = await call(teacherRoom + '/homework/' + homeworkId + '/review', {
+  method: 'PUT', body: { review: 'Good work — review question 3.' },
+});
+assert.equal(result.status, 200, 'Tutor can review student submission');
+await switchBrowserDemoAccount(quickStudent.id);
+result = await call(studentRoom);
+assert.equal(result.data.homework[0].review, 'Good work — review question 3.', 'Review persists across switches');
+
+// Switching between two student identities must not leak authorization.
+await switchBrowserDemoAccount(originalNewStudent.id);
+result = await call('/auth/me');
+assert.equal(result.data.id, originalNewStudent.id, 'Same-role account switch changes identity');
+result = await call(studentRoom);
+assert.equal(result.status, 403, 'Other student must not access first student classroom');
+await switchBrowserDemoAccount(adminAccount.id);
+result = await call('/admin');
+assert.equal(result.status, 200, 'Demo switcher can enter simulated admin console');
+
 resetBrowserDemo();
 assert.equal(data.size, 0, 'Reset removes only browser-demo keys in an otherwise empty store');
 result = await call('/auth/me');
 assert.equal(result.status, 401, 'Reset re-seeds without an active session');
 
-console.log('Browser-local demo verified: seed data, login, signup, classrooms, matching, pricing, admin, permissions, logout, reset.');
+console.log('Browser-local demo verified: seed data, signup, quick account creation, same-role and cross-role switching, bidirectional chat, scheduling, notes, homework review, pricing, admin, permission isolation, logout, reset.');
 console.log('API calls exercised: ' + assertions);
