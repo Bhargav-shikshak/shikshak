@@ -37,5 +37,5 @@ const server = createServer((req, res) => {
 });
 server.listen(port, '127.0.0.1', () => {
   const address = server.address();
-  if (address && typeof address !== 'string') console.log('Studylane demo: http://127.0.0.1:' + address.port + '/');
+  if (address && typeof address !== 'string') console.log('Shikshak demo: http://127.0.0.1:' + address.port + '/');
 });
