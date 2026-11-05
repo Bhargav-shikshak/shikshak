@@ -35,9 +35,14 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
   const filteredAccounts = accounts.filter(account => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
+    // Debug switcher is visible in browser-demo mode only. Even here, teacher
+    // screens should not provide student emails or neighbourhood lookup.
+    const privateStudent = current.role === 'teacher' && account.role === 'student';
     const area = account.homeArea ? account.homeArea.city + ', ' + account.homeArea.locality :
       (catalog.localities.find(place => place.id === account.localityId)?.name ?? '');
-    return [account.name, account.email, account.role, area].some(value => value.toLowerCase().includes(term));
+    return (privateStudent ? [account.name, account.role] :
+      [account.name, account.email, account.role, area])
+      .some(value => value.toLowerCase().includes(term));
   }).sort((a, b) => (a.id === current.id ? -1 : b.id === current.id ? 1 : 0));
 
   useEffect(() => {
@@ -132,8 +137,11 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
             onClick={() => void switchTo(account.id)}>
             <span className="demo-switcher-avatar" aria-hidden="true">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</span>
             <span className="demo-switcher-identity"><strong>{account.name}</strong>
-              <small>{account.role === 'admin' ? 'Administrator' : account.role === 'teacher' ? 'Teacher' : 'Student'} · {account.email}</small>
-              {account.homeArea && <small>{account.homeArea.locality}, {account.homeArea.city}</small>}
+              <small>{account.role === 'admin' ? 'Administrator' : account.role === 'teacher' ? 'Teacher' : 'Student'} · {
+                current.role === 'teacher' && account.role === 'student' ? 'demo test identity' : account.email
+              }</small>
+              {account.homeArea && !(current.role === 'teacher' && account.role === 'student') &&
+                <small>{account.homeArea.locality}, {account.homeArea.city}</small>}
               {!account.active && <small>Suspended — reactivate from admin</small>}
             </span>
             <span className="demo-switcher-action">
