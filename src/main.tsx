@@ -18,15 +18,16 @@ import { Profile } from './components/Profile';
 import { LegalPage, SiteFooter, type LegalKind } from './components/Legal';
 import './workspace.css';
 import './portal.css';
+import './dibya.css';
 
 type View = 'home' | 'explore' | 'bookings' | 'classrooms' | 'classroom' | 'listing' | 'profile';
 const views = [
   { id: 'home', label: 'Home', icon: House },
-  { id: 'explore', label: 'Explore', icon: Compass },
+  { id: 'explore', label: 'Find tutors', icon: Compass },
   { id: 'bookings', label: 'Bookings', icon: BookOpen },
-  { id: 'classrooms', label: 'Classes', icon: CalendarDays },
+  { id: 'classrooms', label: 'My classes', icon: CalendarDays },
   { id: 'listing', label: 'My listing', icon: FilePenLine },
-  { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'profile', label: 'My profile', icon: UserRound },
 ] as const;
 
 const link = (role: Role, view: View, id?: string) =>
@@ -173,7 +174,7 @@ function App() {
       <div className="header-right">
         {(isBrowserDemo || catalog.demo) && <span className="demo-pill"><FlaskConical size={14}/>{isBrowserDemo ? 'Local demo' : 'Pilot'}</span>}
         <a className="portal-user" href={link(role, 'profile')} title={session.email}><span className="workspace-avatar">{session.name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase()}</span><span className="workspace-name">{session.name}<small>{role === 'teacher' ? 'Teacher' : 'Student'}</small></span></a>
-        <button className="portal-logout icon-button" type="button" disabled={signingOut} aria-label="Log out" title="Log out" onClick={() => void logout()}><LogOut size={18}/></button>
+        <button className="portal-logout icon-button" type="button" disabled={signingOut} aria-label="Log out" onClick={() => void logout()}><LogOut size={18}/><span>Log out</span></button>
       </div>
     </div></header>
     {isBrowserDemo && <div className="browser-demo-bar" role="note">
