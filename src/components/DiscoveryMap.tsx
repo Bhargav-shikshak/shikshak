@@ -109,13 +109,18 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
     const seen = new Map<string, number>();
     for (const listing of listings) {
       // Listings intentionally point to neighbourhood centres, not household addresses.
-      const count = seen.get(listing.localityId) ?? 0;
-      seen.set(listing.localityId, count + 1);
+      // Group only truly co-located coarse pins, not every account with the
+      // old Guwahati fallback localityId (new signups may live in any city).
+      const locationKey = listing.location.lat.toFixed(2) + ',' + listing.location.lng.toFixed(2);
+      const count = seen.get(locationKey) ?? 0;
+      seen.set(locationKey, count + 1);
+      const angle = count * 2.399963;
+      const offset = Math.min(0.003, 0.00065 * Math.sqrt(count));
       const label = document.createElement('span');
       label.textContent = money(listing.rate);
       const pin = L.marker([
-        listing.location.lat + count * 0.0018,
-        listing.location.lng + count * 0.002,
+        listing.location.lat + Math.cos(angle) * offset,
+        listing.location.lng + Math.sin(angle) * offset,
       ], {
         title: listing.name,
         alt: listing.name,
