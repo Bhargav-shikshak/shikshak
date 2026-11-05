@@ -1,0 +1,1 @@
+create function public.shikshak_health() returns jsonb language sql stable security invoker set search_path='' as $$ select '{"ok":true,"schemaVersion":1}'::jsonb $$; grant execute on function public.shikshak_health() to anon,authenticated; notify pgrst,'reload schema';

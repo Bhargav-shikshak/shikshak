@@ -2,7 +2,7 @@ name: Shikshak build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev/backend-test]
   pull_request:
     branches: [main]
 
@@ -21,6 +21,8 @@ jobs:
         run: npm ci
       - name: Type-check and build
         run: npm run build
+      - name: Verify Supabase HTTP gateway
+        run: npm run test:backend
       - name: Verify authentication and classroom workflows
         run: npm run test:platform
       - name: Verify browser-local demo and sample workflows

@@ -1,3 +1,9 @@
+# Shikshak · backend test branch
+
+The frontend on this branch is connected to Supabase through the Cloudflare API. See [Backend setup, deployment and verification](docs/BACKEND.md) for the current architecture, first-administrator setup and test instructions. Main remains unchanged pending review.
+
+---
+
 # Shikshak
 
 Shikshak is a neighbourhood-based tutoring platform. Students browse nearby tutors on a map or list and request their first class. The tutor accepts or declines the request. Only **accepted bookings** unlock shared classrooms, messaging, lesson notes, PDF homework and feedback. Teacher accounts cannot browse student profiles or locations.

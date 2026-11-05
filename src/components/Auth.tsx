@@ -20,6 +20,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
   const [homeArea, setHomeArea] = useState<HomeArea | null>(null);
   const [setupToken, setSetupToken] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   function useDemoAccount(kind: 'student' | 'teacher' | 'admin') {
     const example = demoAccounts[kind];
@@ -43,6 +44,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
     if (busy) return;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       if (mode === 'signup' && (!homeArea?.city.trim() || !homeArea?.locality.trim()))
         throw new Error('Place your home neighbourhood marker and confirm the city and locality.');
@@ -51,6 +53,11 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         : mode === 'signup'
           ? await api.signup({ name, email, password, role, localityId, homeArea: homeArea! })
           : await api.login(email, password);
+      if ('confirmationRequired' in account) {
+        setNotice(account.message);
+        setMode('login');
+        return;
+      }
       if (admin && account.role !== 'admin') {
         await api.logout();
         throw new Error('This account is not an administrator.');
@@ -76,7 +83,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
       </div>
     </section>
     <section className="auth-panel" aria-label={admin ? 'Administrator authentication' : 'Account authentication'}>
-      <h2>{mode === 'login' ? (admin ? 'Admin sign in' : 'Welcome back') : mode === 'bootstrap' ? 'Set up the first admin' : 'Create an account'}</h2>
+      <h2>{mode === 'login' ? (admin ? 'Admin sign in' : 'Welcome back') : mode === 'bootstrap' ? 'Activate the first admin' : 'Create an account'}</h2>
       <p className="auth-subtext">{mode === 'login' ? 'Sign in with your registered email and password.' : 'Use your own details to get started.'}</p>
       {isBrowserDemo && <div className="browser-demo-notice" role="note">
         <strong>Browser demo mode</strong>
@@ -106,7 +113,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
           <button type="button" aria-pressed={role === 'student'} onClick={() => setRole('student')}><BookOpen size={18}/><span>I'm a student<small>Find tutors and manage learning</small></span></button>
           <button type="button" aria-pressed={role === 'teacher'} onClick={() => setRole('teacher')}><GraduationCap size={18}/><span>I'm a teacher<small>Find students and teach</small></span></button>
         </div>}
-        {mode !== 'login' && <label>Your name<input required autoComplete="name" maxLength={60} value={name} onChange={event => setName(event.target.value)} placeholder="Full name"/></label>}
+        {mode === 'signup' && <label>Your name<input required autoComplete="name" maxLength={60} value={name} onChange={event => setName(event.target.value)} placeholder="Full name"/></label>}
         <label>Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com"/></label>
         <label>Password<input required type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'login' ? 1 : 10} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} placeholder={mode === 'login' ? 'Your password' : 'At least 10 characters'}/></label>
         {mode === 'signup' && <div className="home-area-group">
@@ -116,11 +123,12 @@ export function Auth({ catalog, onSuccess, admin = false }: {
           <p className="field-help">After signup, home location can be changed only once every 30 days.</p>
         </div>}
         {mode === 'bootstrap' && <label>Server setup key<input required type="password" autoComplete="off" value={setupToken} onChange={event => setSetupToken(event.target.value)} placeholder="ADMIN_BOOTSTRAP_TOKEN"/></label>}
+        {notice && <p className="auth-footnote" role="status">{notice}</p>}
         {error && <ErrorNotice message={error}/>}
-        <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Create administrator' : 'Create my account'}<ArrowRight size={17}/></button>
+        <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Activate administrator' : 'Create my account'}<ArrowRight size={17}/></button>
       </form>
       {mode === 'signup' && <p className="auth-footnote"><LockKeyhole size={15}/> Your role is tied to your account. You can edit your profile after signing up.</p>}
-      {admin && !isBrowserDemo && <p className="auth-footnote">The first administrator requires a server-configured setup key. No public admin account is provided.</p>}
+      {admin && !isBrowserDemo && <p className="auth-footnote">Create and confirm a student or teacher account first. Activate it here using the one-time administrator setup key.</p>}
       {admin && isBrowserDemo && <p className="auth-footnote">This is a local testing administrator, not a privileged production account.</p>}
       {isBrowserDemo && <button type="button" className="reset-demo-button" onClick={() => void resetDemo()}>Reset local demo accounts and data</button>}
       <a className="auth-back" href={admin ? '#login' : '#admin'}>{admin ? 'Back to Shikshak' : 'Administrator access'}</a>
