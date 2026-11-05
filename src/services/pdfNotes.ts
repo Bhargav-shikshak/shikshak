@@ -38,20 +38,17 @@ function transaction<T>(mode: IDBTransactionMode, execute: (store: IDBObjectStor
     try { tx = db.transaction(STORE_NAME, mode); }
     catch { db.close(); reject(unavailable()); return; }
     let result: T;
-    let captured = false;
     tx.oncomplete = () => { db.close(); resolve(result); };
     tx.onabort = () => { db.close(); reject(new Error('Could not save or read the PDF. Browser storage may be full.')); };
     tx.onerror = () => { /* onabort handles transaction failures */ };
     try {
       execute(tx.objectStore(STORE_NAME), value => {
         result = value;
-        captured = true;
       });
     } catch (error) {
       db.close();
       reject(error);
     }
-    void captured;
   }));
 }
 
@@ -69,7 +66,8 @@ export async function validatePdfFile(file: File): Promise<void> {
 
 export async function savePdfNote(file: File): Promise<PdfNoteAttachment> {
   await validatePdfFile(file);
-  const name = file.name.trim().slice(0, 140);
+  // Keep the .pdf extension even when the original file name is very long.
+  const name = file.name.trim().replace(/[\\/]/g, '').slice(0, -4).slice(0, 136) + '.pdf';
   const pdf: PdfNoteAttachment = {
     id: crypto.randomUUID(),
     name,
