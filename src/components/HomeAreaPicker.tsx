@@ -62,8 +62,13 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     }
     const point = L.latLng(value.lat, value.lng);
     if (marker.current) marker.current.setLatLng(point);
-    else marker.current = L.marker(point, { keyboard: false, draggable: false })
-      .addTo(map.current).bindTooltip('Approximate home neighbourhood');
+    else marker.current = L.marker(point, {
+      keyboard: false, draggable: false,
+      // Custom CSS pin avoids Leaflet's default PNG asset-path problems in Vite.
+      icon: L.divIcon({ className: 'home-area-marker',
+        html: '<span aria-hidden="true"></span>',
+        iconSize: [28, 34], iconAnchor: [14, 30] }),
+    }).addTo(map.current).bindTooltip('Approximate home neighbourhood');
   }, [value?.lat, value?.lng, disabled]);
 
   async function place(point: Point) {
