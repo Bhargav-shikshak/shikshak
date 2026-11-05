@@ -12,6 +12,7 @@ import type { DemoState } from '../../demo/api';
 import { demoApi, initialState } from '../../demo/api';
 import { catalog } from '../../demo/seed';
 import { seedListings } from '../../demo/fixtures';
+import { addHistoricalActivity, historyProfiles } from '../../demo/history';
 import type { PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
@@ -19,6 +20,7 @@ const STATE_KEY = 'shikshak.browser-pilot.v1';
 const SESSION_KEY = 'shikshak.browser-pilot.session.v1';
 const ADMIN_SEED_KEY = 'shikshak-local-demo-bootstrap-for-testing-only';
 const FIXTURE_VERSION = 2;
+const HISTORY_VERSION = 1;
 
 type DemoInput = {
   name: string;
@@ -180,6 +182,70 @@ async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
   return true;
 }
 
+/**
+ * Upgrade the existing demo in place with five months of richer, fictional
+ * activity. This is deliberately separate from the original preview migration
+ * so browsers that already have matches/classes receive history without reset.
+ */
+async function ensureDemoHistory(state: DemoState): Promise<boolean> {
+  const demo = state as DemoState & { historyVersion?: number };
+  if (demo.historyVersion === HISTORY_VERSION) return false;
+
+  for (const [index, sample] of historyProfiles.entries()) {
+    if (state.accounts[sample.id]) continue;
+    // Never overwrite user-created accounts, even if somebody happened to use
+    // a similar display name or a sample email in their browser.
+    if (Object.values(state.accounts).some(account => account.email === sample.email)) continue;
+
+    const created = await checked(state, '/auth/signup', 'POST', {
+      name: sample.name, email: sample.email,
+      password: DEMO_PASSWORD, role: sample.role, localityId: sample.localityId,
+    }) as PublicAccount;
+    const token = sessionFor(state, created);
+    const account = state.accounts[created.id];
+    delete state.accounts[created.id];
+    account.id = sample.id;
+    // Account age varies from early summer through autumn.
+    account.createdAt = new Date(Date.now() - (45 + (index * 17) % 110) * 86400000).toISOString();
+    state.accounts[sample.id] = account;
+    state.sessions[token].userId = sample.id;
+
+    await checked(state, '/profile', 'PUT', {
+      name: sample.name, localityId: sample.localityId, bio: sample.bio,
+      strongSubjects: sample.strongSubjects, weakSubjects: sample.weakSubjects,
+      qualifications: sample.qualifications, experience: sample.experience,
+    }, token);
+    await checked(state, '/workspaces/' + sample.role + '/listing', 'PUT', {
+      name: sample.name, headline: sample.headline,
+      localityId: sample.localityId, subjects: sample.subjects,
+      grades: sample.grades, rate: sample.budget,
+      availability: sample.availability, description: sample.description, published: true,
+    }, token);
+
+    if (state.own[sample.id]) {
+      state.own[sample.id].avatar = (index % 8) + 1;
+      state.own[sample.id].color = ['sage', 'lilac', 'peach', 'blue'][index % 4];
+    }
+    delete state.sessions[token];
+  }
+
+  // Newly generated activity stays inside the normal account/relationship
+  // store and respects existing one-way interests and user-written records.
+  addHistoricalActivity(state);
+
+  // Only update ages for official fictional fixtures, never real user-created
+  // browser accounts or their profile details.
+  for (const [index, listing] of seedListings.entries()) {
+    const account = state.accounts[listing.id];
+    if (account) {
+      account.createdAt = new Date(Date.now() - (60 + (index * 13) % 95) * 86400000).toISOString();
+    }
+  }
+
+  demo.historyVersion = HISTORY_VERSION;
+  return true;
+}
+
 async function seedBrowserDemo(): Promise<DemoState> {
   const state = initialState();
   const members: { account: PublicAccount; token: string; role: Role }[] = [];
@@ -260,6 +326,7 @@ async function seedBrowserDemo(): Promise<DemoState> {
 
   // Former UI-only profiles are now regular accounts that can match and chat.
   await ensureDemoFixtureAccounts(state);
+  await ensureDemoHistory(state);
   // Fixture tokens are not an active login. Visitors choose or create an account.
   state.sessions = {};
   void adminToken;
@@ -306,9 +373,12 @@ async function loadOrSeedState(): Promise<DemoState> {
   if (!state) {
     state = await seedBrowserDemo();
     storeState(state);
-  } else if (await ensureDemoFixtureAccounts(state)) {
-    // Upgrade old browser data in place; do not erase accounts, chats, or lessons.
-    storeState(state);
+  } else {
+    // Each migration runs once. Existing local accounts, matches, messages and
+    // homework are never cleared when a newer demo dataset is installed.
+    const fixturesUpdated = await ensureDemoFixtureAccounts(state);
+    const historyUpdated = await ensureDemoHistory(state);
+    if (fixturesUpdated || historyUpdated) storeState(state);
   }
   return state;
 }
