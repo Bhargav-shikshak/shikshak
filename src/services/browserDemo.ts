@@ -10,6 +10,7 @@
  */
 import type { DemoState } from '../../demo/api';
 import { demoApi, initialState } from '../../demo/api';
+import { catalog } from '../../demo/seed';
 import type { PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
@@ -234,6 +235,21 @@ function storeState(state: DemoState): void {
 
 let queue: Promise<unknown> = Promise.resolve();
 
+function queued<T>(task: () => Promise<T>): Promise<T> {
+  const work = queue.catch(() => undefined).then(task);
+  queue = work.catch(() => undefined);
+  return work;
+}
+
+async function loadOrSeedState(): Promise<DemoState> {
+  let state = readState();
+  if (!state) {
+    state = await seedBrowserDemo();
+    storeState(state);
+  }
+  return state;
+}
+
 /**
  * Same signature/Response semantics as fetch, but fully local to this browser.
  * Serializing requests prevents concurrent initial seeding or tab-local writes
@@ -243,13 +259,9 @@ export function browserDemoRequest(
   path: string,
   options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<Response> {
-  const work = queue.catch(() => undefined).then(async () => {
+  return queued(async () => {
     if (options.signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    let state = readState();
-    if (!state) {
-      state = await seedBrowserDemo();
-      storeState(state);
-    }
+    const state = await loadOrSeedState();
 
     const token = localStorage.getItem(SESSION_KEY) ?? undefined;
     const response = await invoke(state, path, options.method ?? 'GET', options.body, token);
@@ -266,8 +278,121 @@ export function browserDemoRequest(
     storeState(state);
     return response;
   });
-  queue = work.catch(() => undefined);
-  return work;
+}
+
+export interface BrowserDemoAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'teacher' | 'admin';
+  localityId: string;
+  active: boolean;
+  published: boolean;
+}
+
+export interface QuickDemoAccountInput {
+  name: string;
+  role: Role;
+  localityId: string;
+  subject: string;
+  grade: string;
+}
+
+export function listBrowserDemoAccounts(): Promise<BrowserDemoAccount[]> {
+  return queued(async () => {
+    const state = await loadOrSeedState();
+    return Object.values(state.accounts)
+      .map(account => ({
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        localityId: account.localityId,
+        active: account.active,
+        published: state.own[account.id]?.published ?? false,
+      }))
+      .sort((a, b) => {
+        const order = { student: 0, teacher: 1, admin: 2 };
+        return order[a.role] - order[b.role] || a.name.localeCompare(b.name);
+      });
+  });
+}
+
+/**
+ * One-click account switching is deliberately available only inside this
+ * local demo adapter. It never calls the remote API or bypasses API auth.
+ */
+export function switchBrowserDemoAccount(accountId: string): Promise<PublicAccount> {
+  return queued(async () => {
+    const state = await loadOrSeedState();
+    const account = state.accounts[accountId];
+    if (!account || !account.active) throw new Error('This demo account is unavailable or suspended.');
+    const previous = localStorage.getItem(SESSION_KEY);
+    if (previous) delete state.sessions[previous];
+    const token = crypto.randomUUID();
+    state.sessions[token] = { userId: account.id, expiresAt: Date.now() + 30 * 86400000 };
+    const response = await invoke(state, '/auth/me', 'GET', undefined, token);
+    if (!response.ok) throw new Error('Could not open this demo account.');
+    const safe = await response.json() as PublicAccount;
+    storeState(state);
+    localStorage.setItem(SESSION_KEY, token);
+    return safe;
+  });
+}
+
+/**
+ * Quick-create a test-only identity with a unique generated email and a
+ * published starter listing. This makes it immediately discoverable for
+ * reciprocal interest, chat and classroom testing.
+ */
+export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<PublicAccount> {
+  return queued(async () => {
+    const state = await loadOrSeedState();
+    const name = input.name.trim().slice(0, 60);
+    const locality = catalog.localities.find(area => area.id === input.localityId);
+    if (!name || !locality) throw new Error('Enter a name and choose a neighbourhood.');
+    if (!catalog.subjects.includes(input.subject) || !catalog.grades.includes(input.grade)) {
+      throw new Error('Choose a subject and class level.');
+    }
+    if (input.role !== 'student' && input.role !== 'teacher') {
+      throw new Error('Only student and teacher demo accounts can be created.');
+    }
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 26) || 'member';
+    const email = 'test-' + slug + '-' + crypto.randomUUID().slice(0, 8) + '@shikshak.demo';
+    const account = await checked(state, '/auth/signup', 'POST', {
+      name, email, role: input.role, localityId: locality.id, password: DEMO_PASSWORD,
+    }) as PublicAccount;
+    const token = sessionFor(state, account);
+    await checked(state, '/profile', 'PUT', {
+      name,
+      localityId: locality.id,
+      bio: input.role === 'teacher'
+        ? 'Demo teaching profile for testing Shikshak.'
+        : 'Demo student profile for testing Shikshak.',
+      qualifications: '', experience: '',
+      strongSubjects: [],
+      weakSubjects: input.role === 'student' ? [input.subject] : [],
+    }, token);
+    await checked(state, '/workspaces/' + input.role + '/listing', 'PUT', {
+      name,
+      headline: input.role === 'teacher' ? input.subject + ' tutor' : 'Looking for help in ' + input.subject,
+      localityId: locality.id,
+      subjects: [input.subject],
+      grades: [input.grade],
+      rate: input.role === 'teacher' ? state.pricing.baseRate : 600,
+      availability: 'Flexible hours',
+      description: input.role === 'teacher'
+        ? 'Available for practice lessons, notes, assignments and demo coordination.'
+        : 'Looking for tutoring, class scheduling and homework support.',
+      published: true,
+    }, token);
+    const previous = localStorage.getItem(SESSION_KEY);
+    if (previous) delete state.sessions[previous];
+    storeState(state);
+    localStorage.setItem(SESSION_KEY, token);
+    return account;
+  });
 }
 
 /** Clear only Shikshak's browser-pilot keys, not other application data. */
