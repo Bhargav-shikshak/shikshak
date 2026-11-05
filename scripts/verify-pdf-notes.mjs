@@ -180,6 +180,9 @@ await assert.rejects(
   /Reviewed homework cannot be changed/i,
 );
 
+// Re-enter a classroom with access before testing missing-file errors.
+await api.logout();
+await api.login('teacher@shikshak.demo', password);
 await clearBrowserPdfNotes();
 assert.equal(documents.size, 0, 'Reset clears PDF bytes');
 await assert.rejects(() => api.getNotePdf('teacher', studentId, note.id), /not found in this browser/i, 'Cleared PDFs show an actionable error');
