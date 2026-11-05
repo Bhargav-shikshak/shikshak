@@ -47,7 +47,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
       <label>Display name<input disabled value={account.name} title="Change your name in Profile"/></label>
       <label>Listing title<input required maxLength={90} value={draft.headline} onChange={event => update('headline', event.target.value)}
         placeholder={isTutor ? 'e.g. Maths & Physics tutor' : 'e.g. Looking for a Class 10 Maths tutor'}/></label>
-      <label>Home neighbourhood<input disabled value={catalog.localities.find(area => area.id === account.localityId)?.name ?? account.localityId} title="Change your area in Profile"/></label>
+      <label>Home neighbourhood<input disabled value={account.homeArea ? account.homeArea.locality + ', ' + account.homeArea.city : (catalog.localities.find(area => area.id === account.localityId)?.name ?? account.localityId)} title="Change your area in Profile"/></label>
       {isTutor ? <label>Hourly base price<input disabled value={account.approvedRate === null ? 'Set by Shikshak' : '₹' + account.approvedRate + ' (approved)'}/>
         <small className="field-help">Student quotes include distance-based travel fees. Request a custom rate from Profile; admin approval is required.</small></label>
         : <label>Your hourly budget (₹)<input type="number" min={50} max={10000} step={1} required value={draft.rate || ''}
