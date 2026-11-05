@@ -74,3 +74,23 @@ The Wrangler config serves the Vite build as static assets and routes API reques
 
 For a GitHub-connected Workers project, point Cloudflare at the repository and set the build command to `npm run build` and the deploy command to `npx --yes wrangler@4 deploy`. To deploy from a logged-in local Wrangler session, run `npm run deploy`.
 
+
+
+## Map architecture (shared approach with CivicWatch)
+
+The discovery map uses **Leaflet** and an always-light **OpenStreetMap raster basemap**, independent of the surrounding interface theme. It supports pan/zoom, mobile map mode, an expanded view, selected-listing price pins, and browser geolocation on request. A device-location marker is shown separately from the search-area marker. Listings remain approximate neighbourhood-centre pins, not tutors' or learners' home addresses.
+
+Place lookup uses a replaceable **Photon-compatible geocoder**. Searches run only when a user submits a place, with request pacing, a small in-memory cache, and a timeout. Map tile errors offer a retry control. The default public tile and geocoding endpoints have rate and fair-use restrictions; use a suitable hosted provider before substantial production traffic.
+
+The current **demo catalogue contains Guwahati listings only**. Searching another city changes the map viewport but does not create or fetch listings there. Discovery filters and matching continue to operate on the catalogue supplied by the API. For nationwide availability, extend the listing/geography backend and implement server-side viewport or radius queries.
+
+Map settings can be set using the example environment file:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| VITE_TILE_URL | OpenStreetMap raster URL | Replaceable map tiles |
+| VITE_TILE_ATTRIBUTION | OpenStreetMap contributors | Tile-provider credits |
+| VITE_TILE_MAX_ZOOM | 19 | Maximum map zoom |
+| VITE_GEOCODER_BASE_URL | Photon public demo | Replaceable place search provider |
+
+These variables are public build-time configuration, not secret credentials. Keep any private provider keys server-side.
