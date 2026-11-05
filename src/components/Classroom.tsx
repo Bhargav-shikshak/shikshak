@@ -1,7 +1,8 @@
-import { useCallback, useState, type FormEvent } from 'react';
-import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Clock3, ClipboardList, MessageCircle, NotebookPen, Send } from 'lucide-react';
+import { useCallback, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Clock3, ClipboardList, FileUp, MessageCircle, NotebookPen, Send, X } from 'lucide-react';
 import type { Homework, Role } from '../../shared/domain';
-import { api } from '../api';
+import { api, isBrowserDemo } from '../api';
+import { PdfNoteLinks } from './PdfNoteLinks';
 import { useResource } from '../useResource';
 import { ErrorNotice } from './Common';
 
@@ -27,6 +28,8 @@ export function Classroom({ role, partnerId, back, message }: {
   const [duration, setDuration] = useState(60);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteBody, setNoteBody] = useState('');
+  const [notePdf, setNotePdf] = useState<File | null>(null);
+  const pdfInput = useRef<HTMLInputElement>(null);
   const [homeworkTitle, setHomeworkTitle] = useState('');
   const [instructions, setInstructions] = useState('');
   const [dueAt, setDueAt] = useState(futureLocal);
@@ -52,11 +55,13 @@ export function Classroom({ role, partnerId, back, message }: {
   }
   function createNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!noteTitle.trim() || !noteBody.trim()) return;
+    if (!noteTitle.trim() || (!noteBody.trim() && !notePdf)) return;
     void mutate('note', async () => {
-      await api.note(role, partnerId, noteTitle, noteBody);
-      setNoteTitle(''); setNoteBody('');
-    }, 'Study notes shared.');
+      if (notePdf) await api.sharePdfNote(role, partnerId, noteTitle, noteBody, notePdf);
+      else await api.note(role, partnerId, noteTitle, noteBody);
+      setNoteTitle(''); setNoteBody(''); setNotePdf(null);
+      if (pdfInput.current) pdfInput.current.value = '';
+    }, notePdf ? 'PDF and study notes shared.' : 'Study notes shared.');
   }
   function createHomework(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -134,15 +139,25 @@ export function Classroom({ role, partnerId, back, message }: {
             {!data.notes.length && <p className="classroom-empty">Notes shared by your tutor will appear here.</p>}
             {[...data.notes].reverse().map(note => <article key={note.id} className="classroom-item">
               <h3>{note.title}</h3><small>{when(note.createdAt)}</small>
-              <p className="classroom-longtext">{note.content}</p>
+              {note.content && <p className="classroom-longtext">{note.content}</p>}
+              {note.pdf && <PdfNoteLinks role={role} partnerId={partnerId} note={note}/>}
             </article>)}
           </section>
           <aside className="workspace-panel">
             {role === 'teacher' ? <><h2>Add lesson notes</h2>
               <form className="editor-form classroom-form" onSubmit={createNote}>
                 <label>Note title<input required maxLength={100} value={noteTitle} onChange={event => setNoteTitle(event.target.value)} placeholder="e.g. Quadratic equations"/></label>
-                <label>Notes<textarea required rows={7} maxLength={8000} value={noteBody} onChange={event => setNoteBody(event.target.value)} placeholder="Write your lesson summary, links or revision guidance."/></label>
-                <button type="submit" className="primary-button" disabled={!!busy}>Share note</button>
+                <label>Notes (optional if uploading a PDF)<textarea rows={6} maxLength={8000} value={noteBody} onChange={event => setNoteBody(event.target.value)} placeholder="Write your lesson summary, links or revision guidance."/></label>
+                {isBrowserDemo ? <div className="classroom-file-picker">
+                  <label htmlFor="teacher-note-pdf"><FileUp size={17}/> Attach a PDF (maximum 10 MB)</label>
+                  <input id="teacher-note-pdf" ref={pdfInput} type="file" accept=".pdf,application/pdf"
+                    onChange={event => setNotePdf(event.target.files?.[0] ?? null)}/>
+                  {notePdf && <div className="classroom-selected-pdf"><span>{notePdf.name} · {(notePdf.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    <button type="button" aria-label="Remove selected PDF" onClick={() => { setNotePdf(null); if (pdfInput.current) pdfInput.current.value = ''; }}><X size={16}/></button>
+                  </div>}
+                  <small>PDFs are stored on this browser only. They will be available when you switch between matched demo accounts here.</small>
+                </div> : <p className="classroom-file-warning">PDF uploads will be enabled after backend file storage is connected. Text notes still work.</p>}
+                <button type="submit" className="primary-button" disabled={!!busy || (!noteBody.trim() && !notePdf)}>Share note{notePdf ? ' and PDF' : ''}</button>
               </form>
             </> : <><h2>Your study library</h2><p className="admin-intro">Your tutor's notes stay in this classroom for you to revisit after each lesson.</p></>}
           </aside>
