@@ -1,6 +1,6 @@
 import type {
   AdminSnapshot, Catalog, ClassSession, Classroom, ClassroomSummary, Connection,
-  ConnectionStatus, Discovery, Filters, Homework, LessonNote, Listing, ListingDraft,
+  ConnectionStatus, Discovery, Filters, HomeArea, Homework, LessonNote, Listing, ListingDraft,
   Message, PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
 
@@ -37,9 +37,11 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
 export interface Registration {
   name: string; email: string; password: string; role: Role;
   localityId: string;
+  homeArea?: HomeArea;
 }
 export interface ProfileInput {
   name: string; localityId: string; bio: string;
+  homeArea?: HomeArea;
   strongSubjects: string[]; weakSubjects: string[];
   qualifications: string; experience: string;
 }
