@@ -23,3 +23,5 @@ jobs:
         run: npm run build
       - name: Verify authentication and classroom workflows
         run: npm run test:platform
+      - name: Validate Cloudflare Worker bundle without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir .wrangler/dry-run
