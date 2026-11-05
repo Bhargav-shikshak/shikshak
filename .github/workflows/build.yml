@@ -25,5 +25,7 @@ jobs:
         run: npm run test:platform
       - name: Verify browser-local demo and sample workflows
         run: npm run test:browser-demo
+      - name: Verify browser PDF note uploads, teacher/student access and cleanup
+        run: npm run test:pdf-notes
       - name: Validate Cloudflare Worker bundle without deploying
         run: npx --yes wrangler@4 deploy --dry-run --outdir .wrangler/dry-run
