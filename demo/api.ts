@@ -1,6 +1,6 @@
 import type {
   AdminSnapshot, ClassSession, Classroom, ClassroomSummary, Connection, ConnectionStatus,
-  DiscoveryListing, Homework, LessonNote, Listing, ListingDraft, Message, Point,
+  DiscoveryListing, HomeArea, Homework, LessonNote, Listing, ListingDraft, Message, Point,
   PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
 import { catalog } from './seed';
@@ -110,6 +110,33 @@ function parseBrowserPdfMetadata(input: unknown): PdfNoteAttachment | null {
   return { id, name, sizeBytes, mimeType: 'application/pdf' };
 }
 
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const roundNeighbourhood = (coordinate: number) => Math.round(coordinate * 100) / 100;
+function validHomeArea(value: unknown): HomeArea | null {
+  if (!value || typeof value !== 'object') return null;
+  const input = value as Record<string, unknown>;
+  const lat = Number(input.lat);
+  const lng = Number(input.lng);
+  const city = cleanText(input.city, 90);
+  const locality = cleanText(input.locality, 100);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180 || !city || !locality) return null;
+  return { lat: roundNeighbourhood(lat), lng: roundNeighbourhood(lng), city, locality };
+}
+function legacyArea(localityId: string): HomeArea {
+  const locality = catalog.localities.find(area => area.id === localityId) ??
+    catalog.localities.find(area => area.id === catalog.defaultLocality)!;
+  return { lat: roundNeighbourhood(locality.lat), lng: roundNeighbourhood(locality.lng),
+    city: catalog.city.split(',')[0], locality: locality.name };
+}
+function userArea(account: Pick<Account, 'homeArea' | 'localityId'>): HomeArea {
+  return account.homeArea ?? legacyArea(account.localityId);
+}
+function sameArea(a: HomeArea, b: HomeArea): boolean {
+  return a.lat === b.lat && a.lng === b.lng && a.city === b.city && a.locality === b.locality;
+}
+
 function allListings(state: DemoState) {
   // All visible profiles are backed by persisted accounts/listings, never render-time fixtures.
   return Object.values(state.own);
@@ -118,6 +145,10 @@ function enrich(state: DemoState, listing: Listing): Listing {
   const account = state.accounts[listing.id];
   return account ? {
     ...listing, name: account.name, localityId: account.localityId,
+    ...(account.homeArea ? {
+      locality: account.homeArea.locality + ', ' + account.homeArea.city,
+      location: { lat: account.homeArea.lat, lng: account.homeArea.lng },
+    } : {}),
     strongSubjects: account.strongSubjects, weakSubjects: account.weakSubjects,
     qualifications: account.qualifications, experience: account.experience,
   } : listing;
@@ -128,15 +159,15 @@ function listingFrom(input: unknown, role: Role, user: Account, state: DemoState
   const headline = cleanText(data.headline, 90);
   const availability = cleanText(data.availability, 100);
   const description = cleanText(data.description, 700);
-  const locality = catalog.localities.find(area => area.id === user.localityId);
+  const locality = userArea(user);
   const subjects = validValues(data.subjects, catalog.subjects);
   const grades = validValues(data.grades, catalog.grades);
   const budget = Number(data.rate);
-  if (!headline || !availability || !description || !locality || !subjects.length || !grades.length ||
+  if (!headline || !availability || !description || !subjects.length || !grades.length ||
     (role === 'student' && (!Number.isInteger(budget) || budget < 50 || budget > 10000))) return null;
   return {
     id: user.id, role, name: user.name, headline, availability, description,
-    localityId: locality.id, locality: locality.name, location: { lat: locality.lat, lng: locality.lng },
+    localityId: user.localityId, locality: locality.locality + ', ' + locality.city, location: { lat: locality.lat, lng: locality.lng },
     subjects, grades, rate: role === 'teacher' ? user.approvedRate ?? state.pricing.baseRate : budget,
     published: data.published === true, avatar: 0, color: role === 'student' ? 'sage' : 'peach',
     strongSubjects: user.strongSubjects, weakSubjects: user.weakSubjects,
@@ -148,9 +179,11 @@ function createAccount(input: Record<string, unknown>, role: Role | 'admin') {
   const email = cleanText(input.email, 254).toLowerCase();
   const password = typeof input.password === 'string' ? input.password : '';
   const localityId = cleanText(input.localityId, 60) || catalog.defaultLocality;
+  // Legacy seeded accounts may still use one of the old locality IDs.
+  const homeArea = input.homeArea === undefined ? undefined : validHomeArea(input.homeArea);
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 10 || password.length > 128 ||
-      !catalog.localities.some(x => x.id === localityId)) return null;
-  return { name, email, password, localityId, role };
+      !catalog.localities.some(x => x.id === localityId) || (input.homeArea !== undefined && !homeArea)) return null;
+  return { name, email, password, localityId, homeArea, role };
 }
 function newSession(request: Request, state: DemoState, userId: string) {
   const token = id();
@@ -198,6 +231,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       const salt = id();
       const account: Account = {
         id: id(), email: entry.email, name: entry.name, role, localityId: entry.localityId,
+        ...(entry.homeArea ? { homeArea: entry.homeArea, homeChangedAt: new Date().toISOString() } : {}),
         bio: '', strongSubjects: [], weakSubjects: [], qualifications: '', experience: '',
         requestedRate: null, approvedRate: null, rateStatus: 'none', active: true,
         createdAt: new Date().toISOString(), salt, passwordHash: await hashPassword(entry.password, salt),
@@ -308,9 +342,25 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     const data = await request.json().catch(() => null) as Record<string, unknown> | null;
     if (!data || typeof data !== 'object') return fail('Invalid profile.');
     const name = cleanText(data.name, 60);
-    const localityId = cleanText(data.localityId, 60);
-    if (!name || !catalog.localities.some(x => x.id === localityId)) return fail('Choose a name and neighbourhood.');
+    const localityId = cleanText(data.localityId, 60) || me.localityId;
+    if (!name || !catalog.localities.some(x => x.id === localityId)) return fail('Choose a name and home location.');
+    const wantsNewArea = data.homeArea !== undefined;
+    const newArea = wantsNewArea ? validHomeArea(data.homeArea) : null;
+    if (wantsNewArea && !newArea) return fail('Place a marker and provide a valid city and locality.');
+    if (newArea && !sameArea(newArea, userArea(me))) {
+      const last = me.homeChangedAt ? Date.parse(me.homeChangedAt) : NaN;
+      if (Number.isFinite(last) && Date.now() - last < THIRTY_DAYS_MS) {
+        const next = new Date(last + THIRTY_DAYS_MS).toISOString().slice(0, 10);
+        return fail('You can change your home area once every 30 days. Next change: ' + next + '.', 429);
+      }
+      me.homeArea = newArea;
+      me.homeChangedAt = new Date().toISOString();
+    } else if (newArea && !me.homeArea) {
+      me.homeArea = newArea;
+      me.homeChangedAt = new Date().toISOString();
+    }
     me.name = name;
+    // A legacy locality key remains for compatibility with older demo metadata.
     me.localityId = localityId;
     me.bio = cleanText(data.bio, 700);
     me.qualifications = me.role === 'teacher' ? cleanText(data.qualifications, 180) : '';
@@ -318,8 +368,10 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     me.strongSubjects = me.role === 'student' ? validValues(data.strongSubjects, catalog.subjects) : [];
     me.weakSubjects = me.role === 'student' ? validValues(data.weakSubjects, catalog.subjects) : [];
     if (state.own[me.id]) {
-      const location = catalog.localities.find(area => area.id === me.localityId)!;
-      Object.assign(state.own[me.id], { name: me.name, localityId, locality: location.name, location: { lat: location.lat, lng: location.lng } });
+      const location = userArea(me);
+      Object.assign(state.own[me.id], { name: me.name, localityId,
+        locality: location.locality + ', ' + location.city,
+        location: { lat: location.lat, lng: location.lng } });
     }
     return json(safeAccount(me));
   }
@@ -340,8 +392,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
   const others = allListings(state).filter(listing =>
     listing.role === otherRole && (!state.accounts[listing.id] || state.accounts[listing.id].active));
   const myId = me.id;
-  const userLocality = catalog.localities.find(area => area.id === me.localityId) ??
-    catalog.localities.find(area => area.id === catalog.defaultLocality)!;
+  const userLocality = userArea(me);
 
   if (parts.length === 5 && resource === 'listing') {
     if (method === 'GET') return json(state.own[myId] ? enrich(state, state.own[myId]) : null);
