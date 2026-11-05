@@ -1,41 +1,52 @@
-import { allowedOrigin, demoApi, initialState, sessionFor, withCookie, type DemoState } from './api';
+import { allowedOrigin, demoApi, initialState, type DemoState } from './api';
 
 interface Environment {
   ASSETS: { fetch(request: Request): Promise<Response> };
   DEMO_SESSIONS: { getByName(name: string): { fetch(request: Request): Promise<Response> } };
+  ADMIN_BOOTSTRAP_TOKEN?: string;
 }
 interface SessionContext {
   blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
-  storage: { get<T>(key: string): Promise<T | undefined>; put<T>(key: string, value: T): Promise<void>; setAlarm(time: number): Promise<void>; deleteAll(): Promise<void> };
+  storage: {
+    get<T>(key: string): Promise<T | undefined>;
+    put<T>(key: string, value: T): Promise<void>;
+  };
 }
 
+// The existing Durable Object class name remains unchanged to preserve the deployed binding.
+// All registered users share ONE platform instance; the previous per-browser demo state is
+// not reused or migrated. Authentication and authorisation happen inside this object.
 export class DemoSession {
-  constructor(private readonly context: SessionContext) {}
+  constructor(
+    private readonly context: SessionContext,
+    private readonly env: Environment,
+  ) {}
 
   async fetch(request: Request) {
     return this.context.blockConcurrencyWhile(async () => {
       const state = await this.context.storage.get<DemoState>('state') ?? initialState();
-      const response = await demoApi(request, state);
-      if (request.method !== 'GET' && response.ok) {
-        await this.context.storage.put('state', state);
-        await this.context.storage.setAlarm(Date.now() + 7 * 86400000);
+      // Prune expired sessions on each write to avoid unbounded accumulation.
+      if (request.method !== 'GET') {
+        const now = Date.now();
+        for (const [token, session] of Object.entries(state.sessions))
+          if (session.expiresAt < now) delete state.sessions[token];
       }
+      const response = await demoApi(request, state, {
+        adminBootstrapToken: this.env.ADMIN_BOOTSTRAP_TOKEN,
+      });
+      if (request.method !== 'GET' || new URL(request.url).pathname.endsWith('/classrooms'))
+        await this.context.storage.put('state', state);
       return response;
     });
   }
-
-  async alarm() { await this.context.storage.deleteAll(); }
 }
 
 export default {
   async fetch(request: Request, env: Environment) {
     const pathname = new URL(request.url).pathname;
     if (!pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    if (!allowedOrigin(request)) return new Response('Cross-origin demo request rejected.', { status: 403 });
-    const session = sessionFor(request);
-    const response = pathname === '/api/v1/catalog'
-      ? await demoApi(request, initialState())
-      : await env.DEMO_SESSIONS.getByName(session.id).fetch(request);
-    return withCookie(response, session.cookie);
+    if (!allowedOrigin(request)) return new Response('Cross-origin request rejected.', { status: 403 });
+    if (pathname === '/api/v1/catalog') return demoApi(request, initialState());
+    return env.DEMO_SESSIONS.getByName('shikshak-platform-v1').fetch(request);
   },
 };
