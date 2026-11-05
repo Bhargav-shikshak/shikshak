@@ -4,6 +4,7 @@ import type { Catalog, PublicAccount, Role } from '../../shared/domain';
 import { useResource } from '../useResource';
 import { api, type ProfileInput } from '../api';
 import { ErrorNotice, money } from './Common';
+import { HomeAreaPicker } from './HomeAreaPicker';
 
 export function Profile({ catalog, account, onUpdated, openListing, openClassroom }: {
   catalog: Catalog;
@@ -23,6 +24,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
   const sharedNotes = classrooms.reduce((count, room) => count + room.classroom.notes.length, 0);
   const [draft, setDraft] = useState<ProfileInput>({
     name: account.name, localityId: account.localityId, bio: account.bio,
+    ...(account.homeArea ? { homeArea: account.homeArea } : {}),
     strongSubjects: account.strongSubjects, weakSubjects: account.weakSubjects,
     qualifications: account.qualifications, experience: account.experience,
   });
@@ -30,6 +32,11 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const nextHomeChange = account.homeChangedAt ? Date.parse(account.homeChangedAt) + 30 * 86400000 : 0;
+  const homeLocked = Boolean(account.homeArea && nextHomeChange > Date.now());
+  const savedArea = account.homeArea?.locality && account.homeArea?.city
+    ? account.homeArea.locality + ', ' + account.homeArea.city
+    : catalog.localities.find(area => area.id === account.localityId)?.name ?? 'Area not set';
 
   function toggle(key: 'strongSubjects' | 'weakSubjects', subject: string) {
     const other = key === 'strongSubjects' ? 'weakSubjects' : 'strongSubjects';
@@ -46,7 +53,12 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
     setBusy(true);
     setStatus('');
     setError('');
-    try { onUpdated(await api.profile(draft)); setStatus('Your profile has been updated.'); }
+    try {
+      const updated = await api.profile(draft);
+      onUpdated(updated);
+      setDraft(previous => ({ ...previous, ...(updated.homeArea ? { homeArea: updated.homeArea } : {}) }));
+      setStatus('Your profile has been updated.');
+    }
     catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   }
@@ -69,9 +81,18 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
       <section className="workspace-panel">
         <div className="profile-identity"><div className="profile-monogram">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</div><div><h2>{account.name}</h2><p>{isTeacher ? 'Teacher' : 'Student'} · {account.email}</p></div></div>
         <form className="editor-form" onSubmit={save}>
-          <div className="form-grid">
-            <label>Display name<input required maxLength={60} value={draft.name} onChange={event => setDraft(v => ({ ...v, name: event.target.value }))}/></label>
-            <label>Home neighbourhood<select value={draft.localityId} onChange={event => setDraft(v => ({ ...v, localityId: event.target.value }))}>{catalog.localities.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label>
+          <label>Display name<input required maxLength={60} value={draft.name} onChange={event => setDraft(v => ({ ...v, name: event.target.value }))}/></label>
+          <div className="home-area-group">
+            <h3>Home neighbourhood</h3>
+            <p className="field-help">Current area: {savedArea}. Only an approximate area is saved and displayed.</p>
+            {homeLocked && <p className="home-area-status" role="status">Your home area is locked until {new Date(nextHomeChange).toLocaleDateString('en-IN', { dateStyle: 'long' })}. You can still edit other profile details.</p>}
+            {!account.homeArea && <p className="field-help">Your earlier area was chosen from a list. You can set your map pin once now; further changes will be limited to once every 30 days.</p>}
+            <HomeAreaPicker
+              value={draft.homeArea ?? account.homeArea ?? null}
+              onChange={homeArea => setDraft(previous => ({ ...previous, ...(homeArea ? { homeArea } : {}) }))}
+              center={account.homeArea ?? catalog.localities.find(area => area.id === account.localityId) ?? catalog.center}
+              disabled={homeLocked}
+            />
           </div>
           <label>About me<textarea rows={4} maxLength={700} value={draft.bio} placeholder={isTeacher ? 'Your teaching approach and interests' : 'Your learning interests and goals'} onChange={event => setDraft(v => ({ ...v, bio: event.target.value }))}/></label>
           {isTeacher ? <>
