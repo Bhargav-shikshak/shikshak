@@ -42,7 +42,7 @@ npm run test:pdf-notes
 npm run preview
 ~~~
 
-The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks the additive five-month history migration (50 additional accounts and rich classrooms), converted former previews, signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. The PDF test checks file validation, teacher notes and worksheets, student PDF homework submissions, replacement uploads, tutor reviews, IndexedDB storage, matched access, unrelated-account rejection and file cleanup. GitHub Actions runs both tests on main.
+The server integration test covers registration, session isolation, 30-day home-pin change enforcement, cross-city distance quotes, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks the additive five-month history migration (50 additional accounts and rich classrooms), converted former previews, signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. The PDF test checks file validation, teacher notes and worksheets, student PDF homework submissions, replacement uploads, tutor reviews, IndexedDB storage, matched access, unrelated-account rejection and file cleanup. GitHub Actions runs both tests on main.
 
 ## Browser-only demo (default)
 
@@ -110,9 +110,15 @@ All of these permissions are checked in the API and cannot be gained by changing
 
 ## Maps
 
-Shikshak uses Leaflet and a replaceable OpenStreetMap raster tile provider, with Photon-compatible place search, optional browser geolocation, mobile list/map switching and tile retry handling. The default area is Guwahati, Assam. Searching another city changes the map viewport but does **not** create tutors or listings in that city.
+Shikshak uses Leaflet and a replaceable OpenStreetMap raster tile provider, with Photon-compatible place search, optional browser geolocation, mobile list/map switching and tile retry handling. Existing demo profiles are concentrated around Guwahati, but **new teacher/student accounts can choose a location in any city**. New listings are placed and distance-based prices are calculated from the map-selected area, not a preset Guwahati locality.
 
-Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEOCODER_BASE_URL. Defaults appear in .env.example and src/mapConfig.ts. The public OSM and Photon endpoints have usage limits and are not guaranteed for large-scale production traffic.
+### Map-based home neighbourhood and change limit
+
+During signup, choose your neighbourhood by searching for a city, tapping the map, or selecting **Use my location**. A marker is placed and the app uses **CivicWatch-style Photon reverse geocoding with a Nominatim fallback** to fill City and Locality. If providers cannot determine either value, you can enter the missing name yourself. The backend stores coordinates rounded to **two decimals (approximately 1 km)**, never the precise browser GPS point or home address. Public pins should be interpreted as approximate neighbourhood centres.
+
+The initial home location is set at signup. From then on, a user can change their home area **once every rolling 30 days** (not once per calendar month). The next allowed date appears in Profile, and the shared API enforces the cooldown; ordinary bio/subject edits remain available. Older demo accounts without a saved map pin are allowed to choose their first marker once, without waiting. The original locality ID remains in legacy data for compatibility but cannot be used to bypass the limit.
+
+Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEOCODER_BASE_URL. Defaults appear in .env.example and src/mapConfig.ts. The public OSM, Photon and Nominatim endpoints have usage limits and are not guaranteed for large-scale production traffic.
 
 ## Architecture
 
@@ -120,6 +126,7 @@ Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEO
 | --- | --- |
 | React/TypeScript account, listing, map, dashboards, classroom and admin screens | src/ |
 | Centralized typed API client | src/api.ts |
+| Home-area map picker and reverse geocoding | src/components/HomeAreaPicker.tsx and src/services/homeArea.ts |
 | Shared domain types | shared/domain.ts |
 | Auth, sessions, role permissions, pricing, matching and classroom logic | demo/api.ts |
 | Guwahati catalogue of neighbourhoods/subjects | demo/seed.ts |
