@@ -1,16 +1,26 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { BookOpen, GraduationCap, MapPin, ShieldCheck, UserRound } from 'lucide-react';
-import type { Catalog, PublicAccount } from '../../shared/domain';
+import type { Catalog, PublicAccount, Role } from '../../shared/domain';
+import { useResource } from '../useResource';
 import { api, type ProfileInput } from '../api';
 import { ErrorNotice, money } from './Common';
 
-export function Profile({ catalog, account, onUpdated, openListing }: {
+export function Profile({ catalog, account, onUpdated, openListing, openClassroom }: {
   catalog: Catalog;
   account: PublicAccount;
   onUpdated: (account: PublicAccount) => void;
   openListing: () => void;
+  openClassroom: (id: string) => void;
 }) {
   const isTeacher = account.role === 'teacher';
+  const role: Role = isTeacher ? 'teacher' : 'student';
+  const activity = useResource(useCallback((signal: AbortSignal) => api.classrooms(role, signal), [role]));
+  const classrooms = activity.data ?? [];
+  const upcoming = classrooms.flatMap(room => room.classroom.sessions.filter(lesson => lesson.status === 'scheduled' && Date.parse(lesson.startsAt) >= Date.now()).map(lesson => ({ ...lesson, partner: room.partner }))).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const homework = classrooms.flatMap(room => room.classroom.homework.map(task => ({ ...task, partner: room.partner })));
+  const pending = homework.filter(task => isTeacher ? !!task.submittedAt && !task.reviewedAt : !task.submittedAt);
+  const studentUpdates = [...homework].filter(task => !!task.submittedAt).sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''));
+  const sharedNotes = classrooms.reduce((count, room) => count + room.classroom.notes.length, 0);
   const [draft, setDraft] = useState<ProfileInput>({
     name: account.name, localityId: account.localityId, bio: account.bio,
     strongSubjects: account.strongSubjects, weakSubjects: account.weakSubjects,
@@ -82,6 +92,32 @@ export function Profile({ catalog, account, onUpdated, openListing }: {
         </form>
       </section>
       <aside className="profile-aside-stack">
+        <section className="workspace-aside profile-activity">
+          <span className="aside-icon"><BookOpen size={22}/></span><h2>{isTeacher ? 'Teaching activity' : 'Learning activity'}</h2>
+          {activity.error && <ErrorNotice message={activity.error} retry={activity.refresh}/>}
+          {!activity.data && !activity.error && <p>Loading your latest activity…</p>}
+          <div className="profile-activity-metrics">
+            <div><strong>{classrooms.length}</strong><span>{isTeacher ? 'Students' : 'Tutors'}</span></div>
+            <div><strong>{upcoming.length}</strong><span>Classes ahead</span></div>
+            <div><strong>{pending.length}</strong><span>{isTeacher ? 'To review' : 'To submit'}</span></div>
+            <div><strong>{sharedNotes}</strong><span>Shared notes</span></div>
+          </div>
+          <h3>Next class</h3>
+          {upcoming.length ? <button type="button" className="profile-activity-link" onClick={() => openClassroom(upcoming[0].partner.id)}>
+            <strong>{upcoming[0].title}</strong><small>{upcoming[0].partner.name} · {new Date(upcoming[0].startsAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+          </button> : <p>No upcoming classes scheduled.</p>}
+          {isTeacher ? <>
+            <h3>Recent student updates</h3>
+            {studentUpdates.length ? studentUpdates.slice(0, 3).map(task => <button key={task.id} type="button" className="profile-activity-link" onClick={() => openClassroom(task.partner.id)}>
+              <strong>{task.partner.name}: {task.title}</strong><small>{task.reviewedAt ? 'Feedback shared' : 'Needs your review'}</small>
+            </button>) : <p>New student submissions will appear here.</p>}
+          </> : <>
+            <h3>Your next action</h3>
+            {pending.length ? pending.slice(0, 3).map(task => <button key={task.id} type="button" className="profile-activity-link" onClick={() => openClassroom(task.partner.id)}>
+              <strong>{task.title}</strong><small>Due {new Date(task.dueAt).toLocaleDateString('en-IN')} · {task.partner.name}</small>
+            </button>) : <p>No pending homework.</p>}
+          </>}
+        </section>
         <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {catalog.localities.find(x => x.id === account.localityId)?.name ?? catalog.city}</p><p>Your dashboard shows upcoming classes and tasks after matching.</p></section>
         {isTeacher && <section className="workspace-aside">
           <span className="aside-icon"><GraduationCap size={22}/></span><h2>Hourly teaching rate</h2>
