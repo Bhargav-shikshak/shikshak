@@ -104,13 +104,13 @@ function App() {
       document.title = 'Shikshak';
       return;
     }
-    document.title = (session.role === 'admin' ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
+    document.title = ((session.role === 'admin' || session.role === 'owner') ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
   }, [session, view, legalKind]);
 
   function loggedIn(account: PublicAccount) {
     setSession(account);
     setChatId(null);
-    window.location.hash = account.role === 'admin' ? '#admin' : link(account.role, account.role === 'teacher' ? 'home' : 'explore');
+    window.location.hash = (account.role === 'admin' || account.role === 'owner') ? '#admin' : link(account.role, account.role === 'teacher' ? 'home' : 'explore');
   }
   async function logout(toAdmin = false) {
     if (signingOut) return;
@@ -132,7 +132,7 @@ function App() {
   if (session === undefined) return <main id="main" className="workspace-page" role="status">Checking your session…</main>;
   if (!session) return <><Auth catalog={catalog} onSuccess={loggedIn} admin={isAdminRoute}/><SiteFooter variant="auth"/></>;
 
-  if (session.role === 'admin') return <>
+  if ((session.role === 'admin' || session.role === 'owner')) return <>
     <header className="site-header"><div className="header-inner portal-header">
       <a className="brand" href="#admin" aria-label="Shikshak admin"><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
       <span className="admin-header-label"><ShieldCheck size={17}/> Admin access</span>
