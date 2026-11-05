@@ -63,15 +63,39 @@ assert.equal(rahulInterest.data.status, 'sent');
 const previewAccounts = await listBrowserDemoAccounts();
 const rahulAccount = previewAccounts.find(x => x.id === 't-rahul');
 assert.ok(rahulAccount && rahulAccount.role === 'teacher' && rahulAccount.published, 'Rahul is switchable and has a live listing');
-assert.ok(previewAccounts.length >= 19, 'All original example tutors and students are persisted as accounts');
+assert.ok(previewAccounts.length >= 69, 'Months of fictional members plus the original test accounts are present');
+assert.equal(previewAccounts.filter(x => x.email.startsWith('months-teacher-')).length, 22, 'History adds 22 tutors');
+assert.equal(previewAccounts.filter(x => x.email.startsWith('months-student-')).length, 28, 'History adds 28 family-managed learners');
+assert.equal(previewAccounts.filter(x => x.role === 'admin').length, 1, 'History never creates extra administrators');
+
+const seeded = JSON.parse(data.get('shikshak.browser-pilot.v1'));
+const populatedRooms = Object.values(seeded.classrooms);
+const classes = populatedRooms.flatMap(room => room.sessions);
+const notes = populatedRooms.flatMap(room => room.notes);
+const assignments = populatedRooms.flatMap(room => room.homework);
+const chats = Object.values(seeded.messages).flat();
+assert.equal(seeded.historyVersion, 1, 'History migration applied once');
+assert.ok(populatedRooms.length >= 40, 'Large set of matched classrooms is available');
+assert.ok(classes.length >= 160 && classes.some(x => x.status === 'completed') && classes.some(x => x.status === 'scheduled'),
+  'Both historical and upcoming classes populate dashboards');
+assert.ok(notes.length >= 100, 'Realistic note libraries are populated');
+assert.ok(assignments.length >= 100 && assignments.some(x => x.reviewedAt) && assignments.some(x => x.submittedAt && !x.reviewedAt),
+  'Homework history includes reviewed and waiting assignments');
+assert.ok(chats.length >= 250, 'Months of conversations populate chat histories');
+assert.ok(classes.some(x => new Date(x.startsAt).getTime() < Date.now() - 90 * 86400000),
+  'Completed classes date back more than three months');
+assert.ok(seeded.interests && Object.values(seeded.interests).some(x => x.length >= 3),
+  'Each role has meaningful connections and pending interests');
 
 const rooms = await call('/workspaces/student/classrooms');
 assert.equal(rooms.status, 200);
-assert.equal(rooms.data.length, 1);
-assert.equal(rooms.data[0].classroom.sessions.length, 2, 'Sample classes exist');
-assert.equal(rooms.data[0].classroom.notes.length, 2, 'Sample notes exist');
-assert.equal(rooms.data[0].classroom.homework.length, 2, 'Sample homework exists');
-assert.ok(rooms.data[0].classroom.homework.some(x => x.submittedAt && !x.reviewedAt), 'Sample pending teacher review exists');
+assert.ok(rooms.data.length >= 2, 'Aditi has multiple established tutor relationships');
+const originalRoom = rooms.data.find(x => x.partner.name === 'Arjun Bora')?.classroom;
+assert.ok(originalRoom, 'Original Arjun/Aditi classroom remains accessible');
+assert.ok(originalRoom.sessions.length >= 5, 'Existing classroom receives completed and upcoming lessons');
+assert.ok(originalRoom.notes.length >= 3, 'Sample notes are preserved alongside historical notes');
+assert.ok(originalRoom.homework.length >= 3, 'Sample homework is preserved alongside historical work');
+assert.ok(originalRoom.homework.some(x => x.submittedAt && !x.reviewedAt), 'Original pending teacher review remains visible');
 
 // Reply from the formerly unmatchable sample account and exercise messaging.
 await switchBrowserDemoAccount(rahulAccount.id);
@@ -234,6 +258,7 @@ assert.equal(result.status, 200, 'Demo switcher can enter simulated admin consol
 const storedKey = 'shikshak.browser-pilot.v1';
 const oldLocal = JSON.parse(data.get(storedKey));
 delete oldLocal.fixtureVersion;
+delete oldLocal.historyVersion;
 delete oldLocal.accounts['t-rahul'];
 delete oldLocal.own['t-rahul'];
 oldLocal.saves[originalNewStudent.id] = ['t-rahul'];
@@ -244,7 +269,9 @@ assert.ok(upgraded.some(x => x.id === 't-rahul' && x.published), 'Old preview mi
 assert.ok(upgraded.some(x => x.id === originalNewStudent.id), 'Previously created local student is preserved');
 const migratedState = JSON.parse(data.get(storedKey));
 assert.equal(migratedState.saves[originalNewStudent.id][0], 't-rahul', 'Saved profile references remain valid');
-assert.equal(Object.keys(migratedState.classrooms).length, oldClassroomCount, 'Existing classroom history survives migration');
+assert.ok(Object.keys(migratedState.classrooms).length >= oldClassroomCount, 'Existing classroom history survives migration');
+assert.equal(migratedState.historyVersion, 1, 'History migration is idempotent on old stored data');
+assert.ok(migratedState.accounts[originalNewStudent.id], 'User-created account is not replaced during migration');
 result = await call('/auth/me');
 assert.equal(result.data.role, 'admin', 'Existing active local session survives migration');
 
@@ -253,5 +280,5 @@ assert.equal(data.size, 0, 'Reset removes only browser-demo keys in an otherwise
 result = await call('/auth/me');
 assert.equal(result.status, 401, 'Reset re-seeds without an active session');
 
-console.log('Browser-local demo verified: seed data, signup, quick account creation, same-role and cross-role switching, bidirectional chat, scheduling, notes, homework review, pricing, admin, permission isolation, logout, reset.');
+console.log('Browser-local demo verified: 50 added demo profiles, 5-month histories, persistent migration, signup, switching, bidirectional chat, classes, homework, admin, isolation and reset.');
 console.log('API calls exercised: ' + assertions);
