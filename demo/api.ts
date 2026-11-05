@@ -29,7 +29,7 @@ export function initialState(): DemoState {
 }
 // Trusted in-process override used only by the browser-local demo adapter.
 // The deployed HTTP worker never derives this value from client request headers.
-type Options = { adminBootstrapToken?: string; browserSessionToken?: string; browserPdfDemo?: boolean };
+type Options = { adminBootstrapToken?: string; browserSessionToken?: string };
 const opposite = (role: Role): Role => role === 'student' ? 'teacher' : 'student';
 const json = (body: unknown, status = 200, headers?: HeadersInit): Response =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -438,7 +438,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         if (data?.pdf !== undefined) {
           // Never accept a blob identifier from a remote client in API mode.
           // The browser demo stores the actual bytes in same-origin IndexedDB.
-          if (!opts.browserPdfDemo) return fail('PDF notes require an integrated file storage service.', 501);
+          if (!opts.browserSessionToken) return fail('PDF notes require an integrated file storage service.', 501);
           if (!data.pdf || typeof data.pdf !== 'object') return fail('Invalid PDF metadata.');
           const raw = data.pdf as Record<string, unknown>;
           const pdfId = cleanText(raw.id, 40);
