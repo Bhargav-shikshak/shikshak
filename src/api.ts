@@ -227,6 +227,9 @@ export const api = {
   reviewHomework: (role: Role, partnerId: string, id: string, review: string) =>
     request<Homework>(roomPath(role, partnerId) + '/homework/' + encodeURIComponent(id) + '/review', { method: 'PUT', body: { review } }),
 
+  ownerMfaStatus: () => request<{ aal: 'aal1' | 'aal2'; factors: { id: string; status: string; type: string }[] }>('/auth/mfa/status'),
+  ownerMfaEnroll: () => request<{ factorId: string; secret: string; qrCode?: string }>('/auth/mfa/enroll', { method: 'POST', body: {} }),
+  ownerMfaVerify: (factorId: string, code: string) => request<{ ok: true }>('/auth/mfa/verify', { method: 'POST', body: { factorId, code } }),
   admin: (signal?: AbortSignal) => request<AdminSnapshot>('/admin', { signal }),
   setPricing: (data: PriceSettings) => request<PriceSettings>('/admin/pricing', { method: 'PUT', body: data }),
   adminAction: (userId: string, action: 'verify' | 'unverify' | 'suspend' | 'activate' | 'hide') => {
