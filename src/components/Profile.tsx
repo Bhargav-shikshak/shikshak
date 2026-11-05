@@ -139,7 +139,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
             </button>) : <p>No pending homework.</p>}
           </>}
         </section>
-        <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {savedArea}</p><p>Your dashboard shows upcoming classes and tasks after matching.</p></section>
+        <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {savedArea}</p><p>Your dashboard shows classes and tasks after a teacher accepts a booking.</p></section>
         {isTeacher && <section className="workspace-aside">
           <span className="aside-icon"><GraduationCap size={22}/></span><h2>Hourly teaching rate</h2>
           <p>Platform pricing applies by default, with a distance-based travel supplement for students.</p>
@@ -149,7 +149,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
           <button type="button" disabled={busy} className="secondary-button" onClick={() => void requestPrice()}>Request admin approval</button>
           <p className="aside-note"><ShieldCheck size={14}/> Requested rates do not become public until approved by an administrator.</p>
         </section>}
-        {!isTeacher && <section className="workspace-aside"><span className="aside-icon"><BookOpen size={22}/></span><h2>Learning at your pace</h2><p>Set stronger and weaker subjects so nearby tutors can understand your needs before matching.</p></section>}
+        {!isTeacher && <section className="workspace-aside"><span className="aside-icon"><BookOpen size={22}/></span><h2>Learning at your pace</h2><p>Your learning strengths and support needs stay private. Tutors only receive the lesson details you include when requesting a class.</p></section>}
       </aside>
     </div>
   </main>;
