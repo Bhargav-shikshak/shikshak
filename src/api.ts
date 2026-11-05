@@ -1,6 +1,6 @@
 import type {
-  AdminSnapshot, Catalog, ClassSession, Classroom, ClassroomSummary, Connection,
-  ConnectionStatus, Discovery, Filters, HomeArea, Homework, LessonNote, Listing, ListingDraft,
+  AdminSnapshot, BookingRequest, Catalog, ClassSession, Classroom, ClassroomSummary,
+  Discovery, Filters, HomeArea, Homework, LessonNote, Listing, ListingDraft,
   Message, PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
 
@@ -67,10 +67,17 @@ export const api = {
     request<Listing>(workspace(role) + '/listing', { method: 'PUT', body: listing }),
   save: (role: Role, id: string, saved: boolean) =>
     request<{ saved: boolean }>(workspace(role) + '/listings/' + encodeURIComponent(id) + '/save', { method: 'PUT', body: { saved } }),
-  interest: (role: Role, id: string) =>
-    request<{ status: ConnectionStatus }>(workspace(role) + '/listings/' + encodeURIComponent(id) + '/interest', { method: 'PUT' }),
-  connections: (role: Role, signal?: AbortSignal) =>
-    request<Connection[]>(workspace(role) + '/connections', { signal }),
+  bookings: (role: Role, signal?: AbortSignal) =>
+    request<BookingRequest[]>(workspace(role) + '/bookings', { signal }),
+  bookClass: (teacherId: string, input: {
+    subject: string; grade: string; startsAt: string; durationMinutes: number; note: string;
+  }) => request<BookingRequest>(workspace('student') + '/bookings', {
+    method: 'POST', body: { teacherId, ...input },
+  }),
+  decideBooking: (bookingId: string, decision: 'accept' | 'reject') =>
+    request<BookingRequest>(workspace('teacher') + '/bookings/' + encodeURIComponent(bookingId), {
+      method: 'PUT', body: { decision },
+    }),
   messages: (role: Role, id: string, signal?: AbortSignal) =>
     request<Message[]>(workspace(role) + '/connections/' + encodeURIComponent(id) + '/messages', { signal }),
   send: (role: Role, id: string, body: string, messageId: string) =>
