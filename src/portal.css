@@ -186,3 +186,21 @@
   .connection-row { flex-wrap: wrap; }
   .match-actions { width: 100%; flex-direction: row; }
 }
+
+
+/* Useful activity summaries directly on each member's profile. */
+.profile-activity { background: #f5f1eb; border-color: #e3dcd2; }
+.profile-activity-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 15px 0; }
+.profile-activity-metrics div { background: #fffefa; border: 1px solid #e6e2dd; border-radius: 9px; padding: 9px; display: grid; gap: 3px; }
+.profile-activity-metrics strong { font: 700 26px/1 "Signika",sans-serif; color: var(--ink); }
+.profile-activity-metrics span { color: var(--muted); font-size: 10px; font-weight: 600; }
+.profile-activity h3 { font-size: 13px; font-weight: 800; margin: 16px 0 7px; }
+.profile-activity .profile-activity-link { width: 100%; display: grid; gap: 4px; padding: 9px; border: 1px solid #e5dfd6; border-radius: 8px; background: #fffefa; text-align: left; margin: 5px 0; }
+.profile-activity-link:hover { border-color: #b3a9bd; }
+.profile-activity-link strong { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.profile-activity-link small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.admin-access-gate { max-width: 610px; }
+.admin-access-gate > .brand { margin: 0 0 30px; }
+.admin-access-gate .workspace-panel { padding: clamp(24px, 4vw, 46px); }
+.admin-access-gate h1 { font: 700 clamp(38px, 6vw, 64px)/1.05 "Signika",sans-serif; letter-spacing: -.055em; margin: 12px 0; }
+.admin-access-gate p:not(.eyebrow) { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
