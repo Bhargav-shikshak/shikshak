@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Crosshair, LocateFixed, MapPin, Search } from 'lucide-react';
+import { LocateFixed, MapPin, Search } from 'lucide-react';
 import type { HomeArea, Point } from '../../shared/domain';
 import { mapConfig } from '../mapConfig';
 import { searchPlaces, type PlaceResult } from '../services/placeSearch';
@@ -128,11 +128,6 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     }
   }
 
-  function placeAtMapCenter() {
-    const point = map.current?.getCenter();
-    if (point) void place({ lat: point.lat, lng: point.lng });
-  }
-
   async function find() {
     setError('');
     setSearching(true);
@@ -185,15 +180,11 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
       </button>)}
     </div>}
     <div className="home-area-map-wrap">
-      <div ref={mapNode} className="home-area-map" aria-label="Tap to place a marker, drag an existing marker, or pan the map to use its centre crosshair"/>
-      <span className="home-area-center-target" aria-hidden="true"><Crosshair size={23}/></span>
+      <div ref={mapNode} className="home-area-map" aria-label="Tap the map to place a marker or drag an existing marker to adjust it"/>
       <button type="button" className="home-area-locate" onClick={deviceLocation}><LocateFixed size={15}/> Use my location</button>
-      <button type="button" className="home-area-place-center" onClick={placeAtMapCenter}>
-        <Crosshair size={16}/> Place marker at crosshair
-      </button>
     </div>
     <p className="field-help home-area-help">
-      Tap the map, drag the pin, or move the map beneath the centre crosshair and press “Place marker at crosshair”.
+      Tap the map to place the pin, or drag the pin to adjust its location.
       Your saved location is rounded to about 1 km for privacy.
     </p>
     <div className="home-area-fields">
