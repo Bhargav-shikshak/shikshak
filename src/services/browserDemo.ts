@@ -13,7 +13,7 @@ import { demoApi, initialState } from '../../demo/api';
 import { catalog } from '../../demo/seed';
 import { seedListings } from '../../demo/fixtures';
 import { addHistoricalActivity, historyProfiles } from '../../demo/history';
-import type { PublicAccount, Role } from '../../shared/domain';
+import type { HomeArea, PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
 const STATE_KEY = 'shikshak.browser-pilot.v1';
@@ -427,7 +427,8 @@ export interface QuickDemoAccountInput {
   name: string;
   role: Role;
   localityId: string;
-  subject: string;
+  homeArea?: HomeArea;
+  subject:
   grade: string;
 }
 
@@ -495,11 +496,13 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
     const email = 'test-' + slug + '-' + crypto.randomUUID().slice(0, 8) + '@shikshak.demo';
     const account = await checked(state, '/auth/signup', 'POST', {
       name, email, role: input.role, localityId: locality.id, password: DEMO_PASSWORD,
+      ...(input.homeArea ? { homeArea: input.homeArea } : {}),
     }) as PublicAccount;
     const token = sessionFor(state, account);
     await checked(state, '/profile', 'PUT', {
       name,
       localityId: locality.id,
+      ...(input.homeArea ? { homeArea: input.homeArea } : {}),
       bio: input.role === 'teacher'
         ? 'Demo teaching profile for testing Shikshak.'
         : 'Demo student profile for testing Shikshak.',
