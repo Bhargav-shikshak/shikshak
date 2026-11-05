@@ -7,7 +7,7 @@ import { ErrorNotice } from './Common';
 function blankListing(catalog: Catalog, role: Role, account: PublicAccount): ListingDraft {
   return {
     name: account.name, headline: '', localityId: account.localityId,
-    subjects: [], grades: [], rate: role === 'teacher' ? account.approvedRate ?? 400 : 500,
+    subjects: [], grades: [], rate: 500,
     availability: '', description: '', published: false,
   };
 }
@@ -41,15 +41,15 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
 
   return <form className="editor-form" onSubmit={submit}>
     <div className="editor-status"><span className={published ? 'visibility visible' : 'visibility'}>
-      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? 'Visible in discovery' : 'Unpublished listing'}
+      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? (isTutor && !account.teacherVerified ? 'Awaiting teacher verification' : 'Visible in discovery') : 'Unpublished listing'}
     </span></div>
     <div className="form-grid">
       <label>Display name<input disabled value={account.name} title="Change your name in Profile"/></label>
       <label>Listing title<input required maxLength={90} value={draft.headline} onChange={event => update('headline', event.target.value)}
         placeholder={isTutor ? 'e.g. Maths & Physics tutor' : 'e.g. Looking for a Class 10 Maths tutor'}/></label>
       <label>Home neighbourhood<input disabled value={account.homeArea ? account.homeArea.locality + ', ' + account.homeArea.city : (catalog.localities.find(area => area.id === account.localityId)?.name ?? account.localityId)} title="Change your area in Profile"/></label>
-      {isTutor ? <label>Hourly base price<input disabled value={account.approvedRate === null ? 'Set by Shikshak' : '₹' + account.approvedRate + ' (approved)'}/>
-        <small className="field-help">Student quotes include distance-based travel fees. Request a custom rate from Profile; admin approval is required.</small></label>
+      {isTutor ? <label>Your hourly teaching rate (₹)<input type="number" required min={100} max={10000} step={1} value={draft.rate || ''} onChange={event => update('rate', Number(event.target.value))}/>
+        <small className="field-help">You set your own base rate. Students see distance-adjusted quotes. Your listing will be discoverable after an administrator verifies your teacher account.</small></label>
         : <label>Your hourly budget (₹)<input type="number" min={50} max={10000} step={1} required value={draft.rate || ''}
           onChange={event => update('rate', Number(event.target.value))}/></label>}
     </div>
@@ -66,7 +66,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
     <div className="notice privacy-note"><ShieldCheck size={20}/><span>Only your neighbourhood is shown on the map. Do not include your address, phone or private contact details.</span><MapPin size={18}/></div>
     {error && <ErrorNotice message={error}/>}
     <div className="form-actions">
-      <button className="primary-button" type="submit" value="publish" disabled={busy}>{busy ? 'Saving…' : published ? 'Save changes' : 'Publish listing'}<ArrowRight size={17}/></button>
+      <button className="primary-button" type="submit" value="publish" disabled={busy}>{busy ? 'Saving…' : published ? 'Save changes' : 'Submit listing'}<ArrowRight size={17}/></button>
       <button className="secondary-button" type="submit" value="hide" disabled={busy}>{published ? 'Save and hide listing' : 'Save as draft'}</button>
     </div>
   </form>;
