@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, CalendarDays, CheckCircle2, Clock3, ClipboardList,
 import type { Homework, Role } from '../../shared/domain';
 import { api, isBrowserDemo } from '../api';
 import { PdfNoteLinks } from './PdfNoteLinks';
+import { PdfHomeworkLinks } from './PdfHomeworkLinks';
 import { useResource } from '../useResource';
 import { ErrorNotice } from './Common';
 
@@ -33,6 +34,10 @@ export function Classroom({ role, partnerId, back, message }: {
   const [homeworkTitle, setHomeworkTitle] = useState('');
   const [instructions, setInstructions] = useState('');
   const [dueAt, setDueAt] = useState(futureLocal);
+  const [assignmentPdf, setAssignmentPdf] = useState<File | null>(null);
+  const assignmentPdfInput = useRef<HTMLInputElement>(null);
+  const [answerPdfs, setAnswerPdfs] = useState<Record<string, File | null>>({});
+  const answerInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [responses, setResponses] = useState<Record<string, string>>({});
 
   async function mutate(key: string, action: () => Promise<unknown>, description: string) {
@@ -65,19 +70,33 @@ export function Classroom({ role, partnerId, back, message }: {
   }
   function createHomework(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!homeworkTitle.trim() || !instructions.trim() || !dueAt) return;
+    if (!homeworkTitle.trim() || (!instructions.trim() && !assignmentPdf) || !dueAt) return;
     void mutate('homework', async () => {
-      await api.assign(role, partnerId, homeworkTitle, instructions, new Date(dueAt).toISOString());
-      setHomeworkTitle(''); setInstructions('');
-    }, 'Homework assigned.');
+      const deadline = new Date(dueAt).toISOString();
+      if (assignmentPdf) await api.assignHomeworkPdf(role, partnerId, homeworkTitle, instructions, deadline, assignmentPdf);
+      else await api.assign(role, partnerId, homeworkTitle, instructions, deadline);
+      setHomeworkTitle(''); setInstructions(''); setAssignmentPdf(null);
+      if (assignmentPdfInput.current) assignmentPdfInput.current.value = '';
+    }, assignmentPdf ? 'Homework and PDF worksheet assigned.' : 'Homework assigned.');
   }
   function homeworkAction(homework: Homework) {
     const content = (responses[homework.id] ?? '').trim();
-    if (!content) { setActionError('Enter your submission or feedback first.'); return; }
-    if (role === 'teacher')
+    const answerPdf = answerPdfs[homework.id] ?? null;
+    if (!content && (role === 'teacher' || !answerPdf)) {
+      setActionError(role === 'teacher' ? 'Write your review first.' : 'Write an answer or attach a PDF answer sheet.');
+      return;
+    }
+    if (role === 'teacher') {
       void mutate(homework.id, () => api.reviewHomework(role, partnerId, homework.id, content), 'Feedback shared with the student.');
-    else
-      void mutate(homework.id, () => api.submitHomework(role, partnerId, homework.id, content), 'Homework submitted for review.');
+    } else {
+      void mutate(homework.id, async () => {
+        if (answerPdf) await api.submitHomeworkPdf(role, partnerId, homework.id, content, answerPdf);
+        else await api.submitHomework(role, partnerId, homework.id, content);
+        setAnswerPdfs(prev => ({ ...prev, [homework.id]: null }));
+        setResponses(prev => ({ ...prev, [homework.id]: '' }));
+        if (answerInputs.current[homework.id]) answerInputs.current[homework.id]!.value = '';
+      }, answerPdf ? 'PDF homework submitted for review.' : 'Homework submitted for review.');
+    }
   }
   const sortedSessions = [...(data?.sessions ?? [])].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const sortedHomework = [...(data?.homework ?? [])].sort((a, b) => a.dueAt.localeCompare(b.dueAt));
@@ -170,12 +189,28 @@ export function Classroom({ role, partnerId, back, message }: {
               <div className="classroom-item-heading"><h3>{homework.title}</h3><span className={'lesson-status ' + (homework.reviewedAt ? 'completed' : homework.submittedAt ? 'submitted' : 'scheduled')}>
                 {homework.reviewedAt ? 'Reviewed' : homework.submittedAt ? 'Submitted' : 'Assigned'}</span></div>
               <p><Clock3 size={15}/> Due {when(homework.dueAt)}</p>
-              <p className="classroom-longtext">{homework.instructions}</p>
+              {homework.instructions && <p className="classroom-longtext">{homework.instructions}</p>}
+              {homework.assignmentPdf && <PdfHomeworkLinks role={role} partnerId={partnerId} homework={homework} kind="assignment"/>}
               {homework.submission && <div className="classroom-response"><strong>Student submission</strong><p>{homework.submission}</p></div>}
+              {homework.submissionPdf && <PdfHomeworkLinks role={role} partnerId={partnerId} homework={homework} kind="submission"/>}
               {homework.review && <div className="classroom-response"><strong>Teacher feedback</strong><p>{homework.review}</p></div>}
               {role === 'student' && !homework.reviewedAt && <div className="classroom-reply">
-                <label>Submit homework<textarea rows={3} maxLength={8000} value={responses[homework.id] ?? ''} placeholder="Your answer, progress or a link to your completed work" onChange={event => setResponses(v => ({ ...v, [homework.id]: event.target.value }))}/></label>
-                <button type="button" disabled={!!busy} className="secondary-button" onClick={() => homeworkAction(homework)}><Send size={16}/>{homework.submittedAt ? 'Update submission' : 'Submit work'}</button>
+                <label>Submit homework (written answer optional with PDF)<textarea rows={3} maxLength={8000} value={responses[homework.id] ?? ''} placeholder="Your solution, progress, or a link to your completed work" onChange={event => setResponses(v => ({ ...v, [homework.id]: event.target.value }))}/></label>
+                {isBrowserDemo ? <div className="classroom-file-picker">
+                  <label htmlFor={'student-homework-pdf-' + homework.id}><FileUp size={17}/> Upload PDF answers (maximum 10 MB)</label>
+                  <input id={'student-homework-pdf-' + homework.id} type="file" accept=".pdf,application/pdf" disabled={!!busy}
+                    ref={element => { answerInputs.current[homework.id] = element; }}
+                    onChange={event => setAnswerPdfs(prev => ({ ...prev, [homework.id]: event.target.files?.[0] ?? null }))}/>
+                  {answerPdfs[homework.id] && <div className="classroom-selected-pdf"><span>{answerPdfs[homework.id]!.name} · {(answerPdfs[homework.id]!.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    <button type="button" aria-label="Remove selected answer PDF" onClick={() => {
+                      setAnswerPdfs(prev => ({ ...prev, [homework.id]: null }));
+                      if (answerInputs.current[homework.id]) answerInputs.current[homework.id]!.value = '';
+                    }}><X size={16}/></button></div>}
+                  {homework.submissionPdf && <small>Already submitted a PDF. Choose another PDF to replace it, or write an updated answer.</small>}
+                  <small>Only this browser's demo accounts can access the uploaded file.</small>
+                </div> : <p className="classroom-file-warning">PDF submissions need backend storage. You can still submit written answers.</p>}
+                <button type="button" disabled={!!busy || (!(responses[homework.id] ?? '').trim() && !answerPdfs[homework.id])}
+                  className="secondary-button" onClick={() => homeworkAction(homework)}><Send size={16}/>{homework.submittedAt ? 'Update submission' : 'Submit work'}</button>
               </div>}
               {role === 'teacher' && homework.submittedAt && !homework.reviewedAt && <div className="classroom-reply">
                 <label>Review homework<textarea rows={3} maxLength={4000} value={responses[homework.id] ?? ''} placeholder="What went well, what to practise next" onChange={event => setResponses(v => ({ ...v, [homework.id]: event.target.value }))}/></label>
@@ -187,11 +222,21 @@ export function Classroom({ role, partnerId, back, message }: {
             {role === 'teacher' ? <><h2>Assign homework</h2>
               <form className="editor-form classroom-form" onSubmit={createHomework}>
                 <label>Assignment title<input required maxLength={100} value={homeworkTitle} onChange={event => setHomeworkTitle(event.target.value)} placeholder="e.g. Chapter 3 exercises"/></label>
-                <label>Instructions<textarea rows={5} required maxLength={3000} value={instructions} onChange={event => setInstructions(event.target.value)} placeholder="Explain what to complete and how to submit."/></label>
+                <label>Instructions (optional with PDF)<textarea rows={5} maxLength={3000} value={instructions} onChange={event => setInstructions(event.target.value)} placeholder="Explain what to complete and how to submit."/></label>
+                {isBrowserDemo ? <div className="classroom-file-picker">
+                  <label htmlFor="teacher-assignment-pdf"><FileUp size={17}/> Attach a PDF worksheet (maximum 10 MB)</label>
+                  <input id="teacher-assignment-pdf" type="file" accept=".pdf,application/pdf" disabled={!!busy} ref={assignmentPdfInput}
+                    onChange={event => setAssignmentPdf(event.target.files?.[0] ?? null)}/>
+                  {assignmentPdf && <div className="classroom-selected-pdf"><span>{assignmentPdf.name} · {(assignmentPdf.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    <button type="button" aria-label="Remove selected worksheet PDF" onClick={() => {
+                      setAssignmentPdf(null); if (assignmentPdfInput.current) assignmentPdfInput.current.value = '';
+                    }}><X size={16}/></button></div>}
+                  <small>The student can view or download this worksheet from their matched classroom.</small>
+                </div> : <p className="classroom-file-warning">PDF worksheets need backend file storage. Text assignments still work.</p>}
                 <label>Due date<input type="datetime-local" required value={dueAt} onChange={event => setDueAt(event.target.value)}/></label>
-                <button className="primary-button" type="submit" disabled={!!busy}>Assign homework</button>
+                <button className="primary-button" type="submit" disabled={!!busy || (!instructions.trim() && !assignmentPdf)}>Assign homework{assignmentPdf ? ' with PDF' : ''}</button>
               </form>
-            </> : <><h2>Turn it in</h2><p className="admin-intro">Write your answers here, or include a link to your work. Your tutor can review it and leave feedback.</p></>}
+            </> : <><h2>Turn it in</h2><p className="admin-intro">Write your answers here, or include a link to your work. Your tutor can review your written or PDF answers and leave feedback.</p></>}
           </aside>
         </>}
       </div>
