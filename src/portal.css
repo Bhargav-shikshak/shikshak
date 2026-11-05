@@ -431,3 +431,11 @@
   .home-area-fields { grid-template-columns: 1fr; }
   .home-area-locate { top: 8px; right: 8px; }
 }
+
+/* Home pin uses CSS artwork rather than Leaflet's external PNG marker files. */
+.home-area-marker { background: transparent; border: 0; }
+.home-area-marker span { position: relative; display: block; width: 24px; height: 24px;
+  border-radius: 50% 50% 50% 0; background: #3d7868; border: 3px solid #fffefa;
+  box-shadow: 0 2px 12px #153c2d66; transform: rotate(-45deg); }
+.home-area-marker span::after { content: ""; position: absolute; inset: 6px;
+  border-radius: 50%; background: #fffefa; }
