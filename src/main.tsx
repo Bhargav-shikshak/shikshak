@@ -100,7 +100,10 @@ function App() {
       document.title = (legalKind === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions') + ' · Shikshak';
       return;
     }
-    if (!session) return;
+    if (!session) {
+      document.title = 'Shikshak';
+      return;
+    }
     document.title = (session.role === 'admin' ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
   }, [session, view, legalKind]);
 
