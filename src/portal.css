@@ -364,3 +364,22 @@
   .classroom-pdf-links { flex: 1 1 100%; }
   .classroom-pdf-links a { flex: 1; }
 }
+
+
+/* Larger five-month demo fixtures: fast account search without a huge drawer. */
+.demo-switcher-search {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 10px; padding: 7px 11px;
+  min-height: 40px; color: #625875;
+  background: #fff; border: 1px solid #d7d1e0; border-radius: 9px;
+}
+.demo-switcher-search:focus-within { border-color: #9784be; box-shadow: 0 0 0 3px #9784be24; }
+.demo-switcher-search input {
+  flex: 1; min-width: 0; border: none; outline: none; box-shadow: none;
+  background: transparent; color: #302d3a; font: 600 12px/1.4 "DM Sans", sans-serif;
+}
+.demo-switcher-search input::placeholder { color: #807c88; font-weight: 500; }
+.demo-switcher-accounts {
+  max-height: min(350px, 43dvh); overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: thin;
+}
