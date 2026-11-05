@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AlertCircle, ArrowUpRight, BookOpen, Clock3, GraduationCap, Heart, MapPin, X } from 'lucide-react';
-import type { ConnectionStatus, DiscoveryListing, Listing } from '../../shared/domain';
+import type { BookingStatus, DiscoveryListing, Listing } from '../../shared/domain';
 
 export const money = (rate: number) => '₹' + rate.toLocaleString('en-IN');
 
@@ -55,8 +55,8 @@ export function ListingCard({ item, selected, busy, onOpen, onSave }: {
   </article>;
 }
 
-export function ListingDetails({ listing, status, busy, onInterest, onChat }: {
-  listing: Listing; status: ConnectionStatus | null; busy: boolean; onInterest: () => void; onChat: () => void;
+export function ListingDetails({ listing, status, busy, onBook, onChat }: {
+  listing: Listing; status: BookingStatus | null; busy: boolean; onBook: () => void; onChat: () => void;
 }) {
   return <>
     <div className="detail-identity"><Avatar listing={listing} large/><div><p className="eyebrow">{listing.role === 'teacher' ? 'TUTOR PROFILE' : 'LEARNER LISTING'}</p><h2>{listing.name}</h2><p>{listing.headline}</p></div></div>
@@ -67,8 +67,12 @@ export function ListingDetails({ listing, status, busy, onInterest, onChat }: {
     {listing.role === 'teacher' && (listing.qualifications || listing.experience) && <><h3>Teacher background</h3><p className="detail-about">{[listing.qualifications, listing.experience].filter(Boolean).join(' · ')}</p></>}
     <h3>Subjects</h3><div className="subject-tags detail-tags">{listing.subjects.map((subject) => <span key={subject}><BookOpen size={13}/>{subject}</span>)}</div>
     <div className="detail-footer"><div><strong>{money(listing.rate)}</strong><span> / hr{listing.role === 'student' ? ' budget' : ''}</span>{listing.role === 'teacher' && 'baseRate' in listing && <small className="price-explanation">Base {money((listing as DiscoveryListing).baseRate ?? listing.rate)} + travel {money((listing as DiscoveryListing).travelFee ?? 0)}</small>}</div>
-      {status === 'matched' ? <button className="primary-button" onClick={onChat}>Open conversation <ArrowUpRight size={17}/></button>
-        : <button className="primary-button" disabled={busy || status === 'sent'} onClick={onInterest}><Heart size={17}/>{status === 'sent' ? 'Interest sent' : status === 'incoming' ? 'Match back' : 'Send interest'}</button>}</div>
-    <p className="detail-privacy">{status === 'matched' ? 'You both expressed interest.' : 'Messaging opens when you both express interest.'} Map pins show neighbourhoods.</p>
+      {status === 'accepted' ? <button className="primary-button" onClick={onChat}>Open conversation <ArrowUpRight size={17}/></button>
+        : <button className="primary-button" disabled={busy || status === 'pending'} onClick={onBook}>
+          <BookOpen size={17}/>{status === 'pending' ? 'Booking awaiting approval' : status === 'rejected' ? 'Request a new class' : 'Book a class'}
+        </button>}</div>
+    <p className="detail-privacy">{status === 'accepted' ? 'Your class request was accepted. Chat and classroom are available.' :
+      status === 'pending' ? 'The tutor will accept or decline your class request.' :
+      'Send a class request and the tutor can accept or decline.'} Map pins show neighbourhoods, not home addresses.</p>
   </>;
 }
