@@ -41,7 +41,7 @@ npm run test:browser-demo
 npm run preview
 ~~~
 
-The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, normal and quick signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. GitHub Actions runs both tests on main.
+The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, converted former previews (including Rahul), normal and quick signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. GitHub Actions runs both tests on main.
 
 ## Browser-only demo (default)
 
@@ -55,7 +55,7 @@ Demo login shortcuts are shown on the sign-in screen. Click one and then select 
 | Teacher (Arjun) | `teacher@shikshak.demo` |
 | Administrator | `admin@shikshak.demo` |
 
-Additional demo profiles **Meghna** (teacher) and **Rohan** (student) are discoverable. Aditi and Arjun are already mutually matched and have upcoming algebra/physics classes, two lesson notes and homework including one submitted assignment waiting for tutor feedback. Meghna has a pending custom-rate request for the administrator to approve or reject. Fictional **Preview** map listings are still available but cannot be messaged or matched; the seeded accounts can.
+Additional demo profiles **Meghna** (teacher) and **Rohan** (student) are discoverable. Aditi and Arjun are already mutually matched and have upcoming algebra/physics classes, two lesson notes and homework including one submitted assignment waiting for tutor feedback. Meghna has a pending custom-rate request for the administrator to approve or reject. **All former map preview profiles, including Rahul Kalita, now have persisted browser-local accounts**, appear in the Test accounts switcher, and support interest, reciprocal matches, messaging, and classrooms.
 
 To create a personal test account, use **Sign up** with invented details and a test-only password. Alternatively, while signed in, open **Test accounts** in the demo bar and choose **Create a test student or teacher**. You only need to provide a name, account type, neighbourhood, subject and class level. Shikshak generates a unique fictional email and test password and publishes a starter listing automatically, so the account is discoverable immediately.
 
@@ -77,7 +77,7 @@ LocalStorage is **not secure authentication**, and its contents can be modified 
 4. Use **Classes** or the new **Classroom** action in Matches. Teachers schedule lessons, post notes and assign homework; students submit written work; teachers leave reviews.
 5. As a teacher, request a personal base rate in Profile. An administrator can approve or reject it.
 
-The Guwahati catalogue also contains fictional **Preview** profiles for visual discovery. They cannot be matched with or messaged. Use one of the seeded demo accounts or create a new browser-local listing to test mutual matching.
+All 14 former Guwahati preview listings are converted into editable, persisted teacher/student demo accounts with published listings. They are not hardcoded into discovery rendering. Switching into a former preview account lets you reply to interests, message students or tutors, schedule classes, and manage homework. Existing browser demo data is upgraded in place, keeping previously created accounts, connections and classwork.
 
 ## Pricing policy
 
@@ -119,7 +119,8 @@ Map settings: VITE_TILE_URL, VITE_TILE_ATTRIBUTION, VITE_TILE_MAX_ZOOM, VITE_GEO
 | Centralized typed API client | src/api.ts |
 | Shared domain types | shared/domain.ts |
 | Auth, sessions, role permissions, pricing, matching and classroom logic | demo/api.ts |
-| Guwahati catalogue and fictional preview profiles | demo/seed.ts |
+| Guwahati catalogue of neighbourhoods/subjects | demo/seed.ts |
+| One-time fictional account templates (not render-time listing data) | demo/fixtures.ts |
 | Browser-only local demo, seeded sample accounts, reset | src/services/browserDemo.ts and src/demoAccounts.ts |
 | Optional local HTTP pilot backend | demo/local.ts and vite.config.ts |
 | Cloudflare Workers + SQLite-backed Durable Object pilot storage | demo/worker.ts and wrangler.jsonc |
