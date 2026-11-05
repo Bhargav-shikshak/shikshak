@@ -459,7 +459,10 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
 }
 
 /** Clear only Shikshak's browser-pilot keys, not other application data. */
-export function resetBrowserDemo(): void {
+export async function resetBrowserDemo(): Promise<void> {
+  // PDF bytes are held separately from the note metadata.
+  const { clearBrowserPdfNotes } = await import('./pdfNotes');
+  await clearBrowserPdfNotes();
   localStorage.removeItem(STATE_KEY);
   localStorage.removeItem(SESSION_KEY);
 }
