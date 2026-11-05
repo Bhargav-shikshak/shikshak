@@ -58,7 +58,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         setMode('login');
         return;
       }
-      if (admin && account.role !== 'admin') {
+      if (admin && account.role !== 'admin' && account.role !== 'owner') {
         await api.logout();
         throw new Error('This account is not an administrator.');
       }
@@ -74,7 +74,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
       <p className="eyebrow hero-eyebrow"><span/> {admin ? 'PLATFORM OPERATIONS' : 'THE NEIGHBOURHOOD TUTOR NETWORK'}</p>
       <h1>{admin ? 'Shikshak operations.' : <>Learn closer.<br/><em>Grow together.</em></>}</h1>
       <p>{admin
-        ? 'Restricted site management, member moderation and pricing approvals.'
+        ? 'Owner and administrator operations, teacher verification and member moderation.'
         : 'A place for students and home tutors to find each other, agree on lessons, and keep learning in one workspace.'}</p>
       <div className="auth-highlights">
         <span><BookOpen size={18}/> Find people nearby</span>
@@ -83,7 +83,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
       </div>
     </section>
     <section className="auth-panel" aria-label={admin ? 'Administrator authentication' : 'Account authentication'}>
-      <h2>{mode === 'login' ? (admin ? 'Admin sign in' : 'Welcome back') : mode === 'bootstrap' ? 'Activate the first admin' : 'Create an account'}</h2>
+      <h2>{mode === 'login' ? (admin ? 'Admin sign in' : 'Welcome back') : mode === 'bootstrap' ? 'Activate the first owner' : 'Create an account'}</h2>
       <p className="auth-subtext">{mode === 'login' ? 'Sign in with your registered email and password.' : 'Use your own details to get started.'}</p>
       {isBrowserDemo && <div className="browser-demo-notice" role="note">
         <strong>Browser demo mode</strong>
@@ -125,10 +125,10 @@ export function Auth({ catalog, onSuccess, admin = false }: {
         {mode === 'bootstrap' && <label>Server setup key<input required type="password" autoComplete="off" value={setupToken} onChange={event => setSetupToken(event.target.value)} placeholder="ADMIN_BOOTSTRAP_TOKEN"/></label>}
         {notice && <p className="auth-footnote" role="status">{notice}</p>}
         {error && <ErrorNotice message={error}/>}
-        <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Activate administrator' : 'Create my account'}<ArrowRight size={17}/></button>
+        <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Log in' : mode === 'bootstrap' ? 'Activate platform owner' : 'Create my account'}<ArrowRight size={17}/></button>
       </form>
       {mode === 'signup' && <p className="auth-footnote"><LockKeyhole size={15}/> Your role is tied to your account. You can edit your profile after signing up.</p>}
-      {admin && !isBrowserDemo && <p className="auth-footnote">Create and confirm a student or teacher account first. Activate it here using the one-time administrator setup key.</p>}
+      {admin && !isBrowserDemo && <p className="auth-footnote">Create and confirm a regular account first. The one-time setup key creates the first owner, who can assign further owners and admins.</p>}
       {admin && isBrowserDemo && <p className="auth-footnote">This is a local testing administrator, not a privileged production account.</p>}
       {isBrowserDemo && <button type="button" className="reset-demo-button" onClick={() => void resetDemo()}>Reset local demo accounts and data</button>}
       <a className="auth-back" href={admin ? '#login' : '#admin'}>{admin ? 'Back to Shikshak' : 'Administrator access'}</a>
