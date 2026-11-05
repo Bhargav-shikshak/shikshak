@@ -95,6 +95,21 @@ function statusFor(state: DemoState, me: string, other: string): ConnectionStatu
   if (incoming) return 'incoming';
   return outgoing ? 'sent' : null;
 }
+
+/** Accept only small, plausible PDF metadata in the in-browser pilot.
+ * Actual bytes are verified/stored separately in IndexedDB. */
+function parseBrowserPdfMetadata(input: unknown): PdfNoteAttachment | null {
+  if (!input || typeof input !== 'object') return null;
+  const data = input as Record<string, unknown>;
+  const id = cleanText(data.id, 40);
+  const name = cleanText(data.name, 140);
+  const sizeBytes = Number(data.sizeBytes);
+  if (!/^[a-f0-9-]{36}$/i.test(id) || !name.toLowerCase().endsWith('.pdf') ||
+      !Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 10 * 1024 * 1024 ||
+      data.mimeType !== 'application/pdf') return null;
+  return { id, name, sizeBytes, mimeType: 'application/pdf' };
+}
+
 function allListings(state: DemoState) {
   // All visible profiles are backed by persisted accounts/listings, never render-time fixtures.
   return Object.values(state.own);
@@ -439,16 +454,8 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
           // Never accept a blob identifier from a remote client in API mode.
           // The browser demo stores the actual bytes in same-origin IndexedDB.
           if (!opts.browserSessionToken) return fail('PDF notes require an integrated file storage service.', 501);
-          if (!data.pdf || typeof data.pdf !== 'object') return fail('Invalid PDF metadata.');
-          const raw = data.pdf as Record<string, unknown>;
-          const pdfId = cleanText(raw.id, 40);
-          const name = cleanText(raw.name, 140);
-          const sizeBytes = Number(raw.sizeBytes);
-          if (!/^[a-f0-9-]{36}$/i.test(pdfId) || !name.toLowerCase().endsWith('.pdf') ||
-              !Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 10 * 1024 * 1024 ||
-              raw.mimeType !== 'application/pdf')
-            return fail('Choose a valid PDF document under 10 MB.');
-          pdf = { id: pdfId, name, sizeBytes, mimeType: 'application/pdf' };
+          pdf = parseBrowserPdfMetadata(data.pdf) ?? undefined;
+          if (!pdf) return fail('Choose a valid PDF document under 10 MB.');
         }
         if (!title || (!content && !pdf)) return fail('Add a title and note content or PDF.');
         const note: LessonNote = { id: id(), title, content, createdAt: new Date().toISOString(), ...(pdf ? { pdf } : {}) };
@@ -459,9 +466,17 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         const title = cleanText(data?.title, 100);
         const instructions = cleanText(data?.instructions, 3000);
         const dueAt = validDate(data?.dueAt);
-        if (!title || !instructions || !dueAt) return fail('Add a homework title, instructions and valid deadline.');
+        let assignmentPdf: PdfNoteAttachment | undefined;
+        if (data?.pdf !== undefined) {
+          if (!opts.browserSessionToken) return fail('PDF homework requires an integrated file storage service.', 501);
+          assignmentPdf = parseBrowserPdfMetadata(data.pdf) ?? undefined;
+          if (!assignmentPdf) return fail('Choose a valid PDF document under 10 MB.');
+        }
+        if (!title || (!instructions && !assignmentPdf) || !dueAt)
+          return fail('Add a homework title, instructions or a PDF worksheet, and a valid deadline.');
         const homework: Homework = {
           id: id(), title, instructions, dueAt, createdAt: new Date().toISOString(),
+          ...(assignmentPdf ? { assignmentPdf } : {}),
           submission: '', submittedAt: null, review: '', reviewedAt: null,
         };
         room.homework.push(homework);
@@ -486,9 +501,19 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         const homework = room.homework.find(item => item.id === itemId);
         if (!homework) return fail('Homework not found.', 404);
         if (verb === 'submit' && role === 'student') {
+          if (homework.reviewedAt) return fail('Reviewed homework cannot be changed.', 409);
           const submission = cleanText(data?.submission, 8000);
-          if (!submission) return fail('Write your solution or submission notes.');
+          let submissionPdf = homework.submissionPdf;
+          if (data?.pdf !== undefined) {
+            if (!opts.browserSessionToken) return fail('PDF homework requires an integrated file storage service.', 501);
+            submissionPdf = parseBrowserPdfMetadata(data.pdf) ?? undefined;
+            if (!submissionPdf) return fail('Choose a valid PDF document under 10 MB.');
+          }
+          if (data?.removePdf === true) submissionPdf = undefined;
+          if (!submission && !submissionPdf) return fail('Write a response or upload a PDF answer sheet.');
           homework.submission = submission;
+          if (submissionPdf) homework.submissionPdf = submissionPdf;
+          else delete homework.submissionPdf;
           homework.submittedAt = new Date().toISOString();
           homework.review = '';
           homework.reviewedAt = null;
