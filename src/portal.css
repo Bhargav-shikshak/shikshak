@@ -439,3 +439,35 @@
   box-shadow: 0 2px 12px #153c2d66; transform: rotate(-45deg); }
 .home-area-marker span::after { content: ""; position: absolute; inset: 6px;
   border-radius: 50%; background: #fffefa; }
+
+
+/* Placement target is an actual map tool, independent of the rounded saved pin. */
+.home-area-center-target {
+  position: absolute; z-index: 450; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 33px; height: 33px;
+  display: grid; place-items: center;
+  color: #285f51; background: #fffdf8e3;
+  border: 1px solid #8da99d;
+  border-radius: 50%; box-shadow: 0 2px 7px #213c3540;
+  pointer-events: none;
+}
+.home-area-center-target svg { stroke-width: 2; }
+.home-area-place-center {
+  position: absolute; bottom: 12px; left: 10px; z-index: 500;
+  min-height: 35px; max-width: calc(100% - 20px);
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 11px; border: 1px solid #ccdad1; border-radius: 8px;
+  box-shadow: 0 3px 12px #182b2230;
+  background: #fffefa; color: #2d5d4e;
+  font-size: 11px; font-weight: 750; cursor: pointer;
+}
+.home-area-place-center:hover, .home-area-place-center:focus-visible {
+  background: #e8f0e9; border-color: #7b9b8a;
+}
+.home-area-marker { cursor: grab; }
+.home-area-marker:active { cursor: grabbing; }
+@media (max-width: 440px) {
+  .home-area-place-center { font-size: 10px; padding: 7px 9px; }
+  .home-area-center-target { width: 30px; height: 30px; }
+}
