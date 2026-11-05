@@ -237,7 +237,7 @@ result = await call('profile', { method: 'PUT', cookie: pinnedStudent.cookie,
 equal(result.status, 200, 'Moving a pin becomes available after rolling 30-day cooldown');
 result = await call('workspaces/student/discovery', { cookie: pinnedStudent.cookie });
 jorhatQuote = result.data.listings.find(x => x.id === pinnedTeacher.data.id);
-equal(jorhatQuote.travelFee, 300, 'Distance pricing is recomputed from new city (capped travel fee)');
+equal(jorhatQuote.travelFee, state.pricing.maxTravelFee, 'Distance pricing is recomputed from new city using the current capped travel fee');
 equal(result.data.origin.lat, 26.63, 'Discovery origin follows the new home map marker');
 
 console.log('Shikshak platform API checks passed (' + assertions + ' assertions).');
