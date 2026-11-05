@@ -81,9 +81,7 @@ export function Explore({ catalog, role, onChat, notify }: ExploreProps) {
           <Search size={20}/>
           <input aria-label="Search listings" placeholder={role === 'student' ? 'Search by subject, tutor or area' : 'Search by subject, learner or area'} value={filters.query} onChange={(event) => update('query', event.target.value)}/>
           {filters.query && <button type="button" className="icon-button clear-search" onClick={() => update('query', '')} aria-label="Clear search"><X size={17}/></button>}
-          <label className="area-select"><MapPin size={17}/><select aria-label="Search from neighbourhood" value={filters.locality} onChange={(event) => update('locality', event.target.value)}>
-            <option value="">My area</option>{catalog.localities.map((area) => <option value={area.id} key={area.id}>{area.name}</option>)}
-          </select><ChevronDown size={13}/></label>
+          <span className="area-select" title="Distances are calculated from your saved map marker"><MapPin size={17}/> My saved area</span>
         </div>
         <div className="filter-row">
           <label className="filter-pill"><BookOpen size={15}/><select aria-label="Subject" value={filters.subject} onChange={(event) => update('subject', event.target.value)}><option value="">Subject</option>{catalog.subjects.map((subject) => <option key={subject}>{subject}</option>)}</select><ChevronDown size={12}/></label>
