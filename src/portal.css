@@ -204,3 +204,44 @@
 .admin-access-gate .workspace-panel { padding: clamp(24px, 4vw, 46px); }
 .admin-access-gate h1 { font: 700 clamp(38px, 6vw, 64px)/1.05 "Signika",sans-serif; letter-spacing: -.055em; margin: 12px 0; }
 .admin-access-gate p:not(.eyebrow) { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 22px; }
+
+
+/* Browser-only pilot mode is visibly distinct from authenticated production. */
+.browser-demo-notice {
+  display: grid; gap: 5px; padding: 12px 14px;
+  border: 1px solid #d5cfeb; border-radius: 11px;
+  background: #f2effa; color: #39365c; font-size: 12px;
+  line-height: 1.5; margin: 16px 0 12px;
+}
+.browser-demo-notice strong { font-size: 13px; }
+.demo-login-choices {
+  padding: 12px 13px; margin: 9px 0 16px;
+  border: 1px solid #e5e1d9; border-radius: 11px;
+  background: #fffefb;
+}
+.demo-login-choices p { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-size: 12px; font-weight: 800; color: #37423b; margin: 0 0 10px; }
+.demo-login-choices p small { font-size: 11px; font-weight: 600; color: #676a71; }
+.demo-login-buttons { display: flex; gap: 7px; flex-wrap: wrap; }
+.demo-login-buttons button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 38px; flex: 1 1 175px; padding: 8px 12px;
+  border: 1px solid #d1d2dc; border-radius: 8px; background: #f5f4f7;
+  color: #282f4a; font-size: 12px; font-weight: 750; cursor: pointer;
+}
+.demo-login-buttons button:hover, .demo-login-buttons button:focus-visible { border-color: #867dad; background: #eeebf5; }
+.reset-demo-button {
+  margin-top: 13px; padding: 4px 0; font-size: 11px;
+  color: #735a64; background: transparent; border: 0;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.reset-demo-button:hover { color: #a23b45; }
+.browser-demo-bar {
+  padding: 9px 20px; text-align: center; font-size: 12px; font-weight: 650;
+  line-height: 1.5; color: #55466d; background: #f1edf8;
+  border-bottom: 1px solid #e2dcef;
+}
+@media(max-width: 760px) {
+  .browser-demo-bar { padding: 8px 12px; font-size: 11px; }
+  .demo-login-choices p { display: block; }
+  .demo-login-choices p small { display: block; margin-top: 3px; }
+}
