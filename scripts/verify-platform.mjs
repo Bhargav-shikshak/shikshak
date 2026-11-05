@@ -197,7 +197,7 @@ const tutorSummary = result.data.find(x => x.partner.id === student.data.id);
 ok(tutorSummary, 'Accepted student appears in tutor classroom list');
 equal(tutorSummary.partner.locality, '', 'Classroom response hides student locality');
 equal(tutorSummary.partner.location.lat, 0, 'Classroom response does not reveal student coordinates');
-equal(tutorSummary.partner.description, '', 'Classroom response hides student's discovery description');
+equal(tutorSummary.partner.description, '', 'Classroom response hides student discovery description');
 
 const route = 'workspaces/teacher/connections/' + student.data.id + '/classroom';
 result = await call(route + '/sessions', { method: 'POST', cookie: teacher.cookie,
