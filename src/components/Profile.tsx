@@ -139,7 +139,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
             </button>) : <p>No pending homework.</p>}
           </>}
         </section>
-        <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {catalog.localities.find(x => x.id === account.localityId)?.name ?? catalog.city}</p><p>Your dashboard shows upcoming classes and tasks after matching.</p></section>
+        <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {savedArea}</p><p>Your dashboard shows upcoming classes and tasks after matching.</p></section>
         {isTeacher && <section className="workspace-aside">
           <span className="aside-icon"><GraduationCap size={22}/></span><h2>Hourly teaching rate</h2>
           <p>Platform pricing applies by default, with a distance-based travel supplement for students.</p>
