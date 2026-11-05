@@ -4,6 +4,8 @@ import type { PriceSettings, PublicAccount } from '../../shared/domain';
 import { api } from '../api';
 import { useResource } from '../useResource';
 import { ErrorNotice } from './Common';
+import { isBrowserDemo } from '../api';
+import { OwnerSecurity } from './OwnerSecurity';
 
 type MemberAction = 'verify' | 'unverify' | 'suspend' | 'activate' | 'hide';
 type StaffAction = 'make-admin' | 'make-owner' | 'revoke-staff';
@@ -67,6 +69,7 @@ export function Admin() {
     {failure && <ErrorNotice message={failure}/>}
     {notice && <p className="form-success" role="status">{notice}</p>}
     {!data && !error && <p role="status">Loading administration…</p>}
+    {isOwner && !isBrowserDemo && <OwnerSecurity/>}
     {data && <div className="admin-stats">
       <div><Users size={19}/><strong>{data.accounts.filter(x => x.role === 'teacher' || x.role === 'student').length}</strong><span>Members</span></div>
       <div><BadgeCheck size={19}/><strong>{data.accounts.filter(x => x.role === 'teacher' && x.teacherVerified).length}</strong><span>Verified teachers</span></div>
