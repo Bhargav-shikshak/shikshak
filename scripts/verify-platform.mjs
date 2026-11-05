@@ -84,11 +84,10 @@ ok(foundTeacher, 'Registered tutor appears in student discovery');
 ok(foundTeacher.rate >= 400, 'Student sees platform distance-based rate');
 equal(foundTeacher.baseRate, 400, 'Price quote uses platform base');
 equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
-ok(result.data.listings.some(x => x.fictional), 'Demo previews are still labelled as fictional');
-
-const preview = result.data.listings.find(x => x.fictional);
-result = await call('workspaces/student/listings/' + preview.id + '/interest', { method: 'PUT', cookie: student.cookie });
-equal(result.status, 409, 'Cannot match a fictional preview profile');
+ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persisted listings');
+equal(result.data.listings.length, 1, 'Server does not inject fictional previews into discovery');
+result = await call('workspaces/student/listings/nonexistent-preview/interest', { method: 'PUT', cookie: student.cookie });
+equal(result.status, 404, 'Unknown profiles cannot be matched');
 
 result = await call('profile', { method: 'PUT', cookie: student.cookie,
   body: { name: 'Student One', localityId: 'rajgarh', bio: 'Preparing for exams',
