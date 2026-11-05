@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BookOpen, CalendarDays, Compass, FilePenLine, FlaskConical, HeartHandshake, House, LogOut, ShieldCheck, UserRound, X } from 'lucide-react';
 import type { Catalog, Listing, PublicAccount, Role } from '../shared/domain';
-import { api } from './api';
+import { api, isBrowserDemo } from './api';
 import { useResource } from './useResource';
 import { ErrorNotice } from './components/Common';
 import { Auth } from './components/Auth';
@@ -126,6 +126,7 @@ function App() {
       <span className="admin-header-label"><ShieldCheck size={17}/> Admin access</span>
       <button type="button" className="secondary-button" disabled={signingOut} onClick={() => void logout()}><LogOut size={16}/> Log out</button>
     </div></header>
+    {isBrowserDemo && <div className="browser-demo-bar" role="note">Browser demo · data is stored on this device only. Admin permissions are simulated for testing.</div>}
     <Admin/>
     <footer className="portal-footer"><strong>Shikshak</strong> · Restricted administration</footer>
     {toast && <div className="toast" role="status"><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast(null)}><X size={16}/></button></div>}
@@ -152,11 +153,12 @@ function App() {
         {views.map(({ id, label, icon: Icon }) => <a key={id} href={link(role, id)} aria-current={view === id ? 'page' : undefined} onClick={() => setChatId(null)}><Icon size={16}/><span>{label}</span></a>)}
       </nav>
       <div className="header-right">
-        {catalog.demo && <span className="demo-pill"><FlaskConical size={14}/> Pilot</span>}
+        {(isBrowserDemo || catalog.demo) && <span className="demo-pill"><FlaskConical size={14}/>{isBrowserDemo ? 'Local demo' : 'Pilot'}</span>}
         <a className="portal-user" href={link(role, 'profile')} title={session.email}><span className="workspace-avatar">{session.name.split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase()}</span><span className="workspace-name">{session.name}<small>{role === 'teacher' ? 'Teacher' : 'Student'}</small></span></a>
         <button className="portal-logout icon-button" type="button" disabled={signingOut} aria-label="Log out" title="Log out" onClick={() => void logout()}><LogOut size={18}/></button>
       </div>
     </div></header>
+    {isBrowserDemo && <div className="browser-demo-bar" role="note">Browser demo · accounts and classwork stay on this device. Do not enter private student information.</div>}
     {view === 'home' && <Dashboard key={role} account={session} openExplore={() => go('explore')} openProfile={() => go('profile')} openClassroom={openClassroom}/>}
     {view === 'explore' && <Explore key={role} catalog={catalog} role={role} onChat={openChat} notify={notify}/>}
     {view === 'matches' && <Matches key={role} catalog={catalog} role={role} currentUserId={session.id} chatId={chatId} clearChat={() => setChatId(null)} openChat={openChat} openClassroom={openClassroom} explore={() => go('explore')} notify={notify}/>}
