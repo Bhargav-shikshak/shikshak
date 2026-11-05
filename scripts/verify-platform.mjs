@@ -289,4 +289,33 @@ jorhatQuote = result.data.listings.find(x => x.id === pinnedTeacher.data.id);
 equal(jorhatQuote.travelFee, state.pricing.maxTravelFee, 'Distance pricing is recomputed from new city using the current capped travel fee');
 equal(result.data.origin.lat, 26.63, 'Discovery origin follows the new home map marker');
 
+// Declining never grants access; a student may send a new request later.
+let decline = await call('workspaces/student/bookings', { method: 'POST', cookie: pinnedStudent.cookie,
+  body: { teacherId: pinnedTeacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 2 * 86400000).toISOString(), durationMinutes: 60,
+    note: 'Please help with revision.' },
+});
+equal(decline.status, 201, 'Students may request a teacher in another city');
+let forbidden = await call('workspaces/student/connections/' + pinnedTeacher.data.id + '/messages', {
+  cookie: pinnedStudent.cookie,
+});
+equal(forbidden.status, 403, 'Messaging stays locked while a booking is pending');
+let decision = await call('workspaces/teacher/bookings/' + decline.data.id, {
+  method: 'PUT', cookie: pinnedTeacher.cookie, body: { decision: 'reject' },
+});
+equal(decision.status, 200, 'Tutor may decline a booking');
+equal(decision.data.status, 'rejected');
+forbidden = await call('workspaces/student/connections/' + pinnedTeacher.data.id + '/classroom', {
+  cookie: pinnedStudent.cookie,
+});
+equal(forbidden.status, 403, 'Declining must not create a classroom');
+decline = await call('workspaces/student/bookings', { method: 'POST', cookie: pinnedStudent.cookie,
+  body: { teacherId: pinnedTeacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
+    startsAt: new Date(Date.now() + 3 * 86400000).toISOString(), durationMinutes: 45 },
+});
+equal(decline.status, 201, 'Student can retry a new class request after decline');
+result = await call('workspaces/teacher/bookings', { cookie: pinnedTeacher.cookie });
+ok(result.data.every(x => !('homeArea' in x) && !('location' in x) && !('locality' in x) &&
+    !('description' in x)), 'Teacher sees no student discovery or home location data in any booking');
+
 console.log('Shikshak platform API checks passed (' + assertions + ' assertions).');
