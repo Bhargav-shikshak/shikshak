@@ -110,7 +110,11 @@ export interface Homework {
   instructions: string;
   dueAt: string;
   createdAt: string;
+  /** Optional PDF worksheet attached by the teacher. */
+  assignmentPdf?: PdfNoteAttachment;
   submission: string;
+  /** Optional PDF answer sheet attached by the student. */
+  submissionPdf?: PdfNoteAttachment;
   submittedAt: string | null;
   review: string;
   reviewedAt: string | null;
