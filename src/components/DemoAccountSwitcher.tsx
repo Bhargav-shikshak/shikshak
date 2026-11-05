@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, ChevronDown, Plus, Search, Users, X } from 'lucide-react';
-import type { Catalog, PublicAccount, Role } from '../../shared/domain';
+import type { Catalog, HomeArea, PublicAccount, Role } from '../../shared/domain';
 import {
   createBrowserDemoAccount,
   listBrowserDemoAccounts,
@@ -8,6 +8,7 @@ import {
   type BrowserDemoAccount,
 } from '../services/browserDemo';
 import { ErrorNotice } from './Common';
+import { HomeAreaPicker } from './HomeAreaPicker';
 
 interface Props {
   catalog: Catalog;
@@ -26,14 +27,16 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
   const [error, setError] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('student');
-  const [localityId, setLocalityId] = useState(catalog.defaultLocality);
+  const localityId = catalog.defaultLocality;
+  const [homeArea, setHomeArea] = useState<HomeArea | null>(null);
   const [subject, setSubject] = useState(catalog.subjects[0] ?? 'Mathematics');
   const [grade, setGrade] = useState(catalog.grades[2] ?? catalog.grades[0] ?? '');
 
   const filteredAccounts = accounts.filter(account => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
-    const area = catalog.localities.find(place => place.id === account.localityId)?.name ?? '';
+    const area = account.homeArea ? account.homeArea.city + ', ' + account.homeArea.locality :
+      (catalog.localities.find(place => place.id === account.localityId)?.name ?? '');
     return [account.name, account.email, account.role, area].some(value => value.toLowerCase().includes(term));
   }).sort((a, b) => (a.id === current.id ? -1 : b.id === current.id ? 1 : 0));
 
@@ -87,13 +90,18 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    if (!homeArea?.city.trim() || !homeArea.locality.trim()) {
+      setError('Place a marker on the map and confirm its city and locality.');
+      return;
+    }
     setBusy('create');
     setError('');
     try {
-      const account = await createBrowserDemoAccount({ name, role, localityId, subject, grade });
+      const account = await createBrowserDemoAccount({ name, role, localityId, homeArea, subject, grade });
       setOpen(false);
       setCreating(false);
       setName('');
+      setHomeArea(null);
       onSwitch(account);
     } catch (cause) {
       setError((cause as Error).message);
@@ -125,6 +133,7 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
             <span className="demo-switcher-avatar" aria-hidden="true">{account.name.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase()}</span>
             <span className="demo-switcher-identity"><strong>{account.name}</strong>
               <small>{account.role === 'admin' ? 'Administrator' : account.role === 'teacher' ? 'Teacher' : 'Student'} · {account.email}</small>
+              {account.homeArea && <small>{account.homeArea.locality}, {account.homeArea.city}</small>}
               {!account.active && <small>Suspended — reactivate from admin</small>}
             </span>
             <span className="demo-switcher-action">
@@ -142,9 +151,10 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
             <label>Account type<select value={role} onChange={event => setRole(event.target.value as Role)}>
               <option value="student">Student</option><option value="teacher">Teacher</option>
             </select></label>
-            <label>Neighbourhood<select value={localityId} onChange={event => setLocalityId(event.target.value)}>
-              {catalog.localities.map(locality => <option key={locality.id} value={locality.id}>{locality.name}</option>)}
-            </select></label>
+            <div className="home-area-group">
+              <p className="field-help">Tap the map to set the new test account’s home neighbourhood.</p>
+              <HomeAreaPicker value={homeArea} onChange={setHomeArea} center={catalog.center}/>
+            </div>
             <label>Subject<select value={subject} onChange={event => setSubject(event.target.value)}>
               {catalog.subjects.map(value => <option value={value} key={value}>{value}</option>)}
             </select></label>
@@ -153,7 +163,7 @@ export function DemoAccountSwitcher({ catalog, current, onSwitch }: Props) {
             </select></label>
           </div>
           <p>Creates a fictional account with a published starter listing, ready for matching. The email and password are generated for testing.</p>
-          <button className="primary-button" type="submit" disabled={!!busy || !name.trim()}>
+          <button className="primary-button" type="submit" disabled={!!busy || !name.trim() || !homeArea?.city.trim() || !homeArea?.locality.trim()}>
             {busy === 'create' ? 'Creating…' : 'Create and switch to account'} <ArrowRight size={16}/>
           </button>
         </form>}
