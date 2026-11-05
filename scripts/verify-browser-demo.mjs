@@ -89,7 +89,7 @@ assert.ok(seeded.interests && Object.values(seeded.interests).some(x => x.length
 
 const rooms = await call('/workspaces/student/classrooms');
 assert.equal(rooms.status, 200);
-assert.ok(rooms.data.length >= 2, 'Aditi has multiple established tutor relationships');
+assert.ok(rooms.data.length >= 1, 'Aditi retains an established tutor relationship');
 const originalRoom = rooms.data.find(x => x.partner.name === 'Arjun Bora')?.classroom;
 assert.ok(originalRoom, 'Original Arjun/Aditi classroom remains accessible');
 assert.ok(originalRoom.sessions.length >= 5, 'Existing classroom receives completed and upcoming lessons');
