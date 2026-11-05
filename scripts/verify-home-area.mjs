@@ -8,7 +8,7 @@ globalThis.fetch = async input => {
   calls.push(url);
   const lat = Number(url.searchParams.get('lat'));
   if (url.hostname === 'photon.komoot.io' && url.pathname === '/reverse') {
-    if (lat === 26.18) return Response.json({ features: [
+    if (lat >= 26.18 && lat < 26.19) return Response.json({ features: [
       { properties: { name: 'Unnamed cafe', city: 'Guwahati', suburb: 'Zoo Road', county: 'Dispur' } },
       { properties: { name: 'Zoo Road Tiniali', city: 'Guwahati', locality: 'Zoo Road' } },
     ] });
@@ -42,9 +42,17 @@ assert.deepEqual(approximateHomePoint({ lat: 26.18332, lng: 91.77491 }),
 const guwahati = await reverseHomeArea({ lat: 26.1833, lng: 91.7749 });
 assert.equal(guwahati.city, 'Guwahati', 'Administrative city outranks county Dispur');
 assert.equal(guwahati.locality, 'Zoo Road', 'Nearby locality is filled from Photon');
+assert.deepEqual({ lat: guwahati.lat, lng: guwahati.lng }, { lat: 26.18, lng: 91.77 },
+  'Only approximate coordinates are retained in the saved account area');
 assert.equal(calls.length, 1, 'Nominatim is not called when Photon has complete address');
-await reverseHomeArea({ lat: 26.18, lng: 91.77 });
-assert.equal(calls.length, 1, 'Repeated reverse lookup of same area is cached');
+assert.equal(calls[0].searchParams.get('lat'), '26.18330',
+  'Reverse geocoder receives the exact clicked map latitude, not rounded public pin');
+assert.equal(calls[0].searchParams.get('lon'), '91.77490',
+  'Reverse geocoder receives the exact clicked map longitude for local accuracy');
+await reverseHomeArea({ lat: 26.1833, lng: 91.7749 });
+assert.equal(calls.length, 1, 'Repeated reverse lookup of the same selected point is cached');
+await reverseHomeArea({ lat: 26.1842, lng: 91.7749 });
+assert.equal(calls.length, 2, 'Two different taps in the same public grid cell get independent locality lookups');
 const jagiroad = await reverseHomeArea({ lat: 26.5, lng: 92.5 });
 assert.equal(jagiroad.city, 'Jagiroad', 'Nominatim town takes precedence over Photon county');
 assert.equal(jagiroad.locality, 'Station Road');
