@@ -193,4 +193,51 @@ equal(result.status, 200, 'Logout succeeds');
 result = await call('auth/me', { cookie: student.cookie });
 equal(result.status, 401, 'Logged-out session is invalid');
 
+// Home selection is a persisted approximate point; HTTP API (not UI state)
+// enforces a rolling 30-day cooldown for subsequent moves.
+const tutorPin = { lat: 26.7533, lng: 94.2079, city: 'Jorhat', locality: 'Tarajan' };
+const learnerPin = { lat: 26.7619, lng: 94.1997, city: 'Jorhat', locality: 'Tarajan' };
+const pinnedTeacher = await call('auth/signup', { method: 'POST', body: {
+  ...member('Jorhat Tutor', 'jorhat-tutor@example.test', 'local-teacher-pass-123', 'teacher', 'rajgarh'),
+  homeArea: tutorPin,
+} });
+equal(pinnedTeacher.status, 201, 'Signup accepts a selected home marker outside Guwahati');
+equal(pinnedTeacher.data.homeArea.lat, 26.75, 'Stored teacher coordinates are rounded');
+ok(pinnedTeacher.data.homeChangedAt, 'Account records first map selection time');
+const pinnedStudent = await call('auth/signup', { method: 'POST', body: {
+  ...member('Jorhat Student', 'jorhat-student@example.test', 'local-student-pass-123', 'student', 'rajgarh'),
+  homeArea: learnerPin,
+} });
+equal(pinnedStudent.status, 201, 'Student can select a home pin in another city');
+result = await call('workspaces/teacher/listing', {
+  method: 'PUT', cookie: pinnedTeacher.cookie,
+  body: draft('Jorhat Tutor', 'Math tuition in Jorhat', 'rajgarh', 400),
+});
+equal(result.status, 200, 'Teacher listing is published at the selected pin');
+equal(result.data.location.lng, 94.21, 'Listing uses coarse map coordinates, not legacy locality ID');
+result = await call('workspaces/student/discovery', { cookie: pinnedStudent.cookie });
+let jorhatQuote = result.data.listings.find(x => x.id === pinnedTeacher.data.id);
+ok(jorhatQuote, 'Jorhat teacher is discoverable beyond the initial city catalogue');
+ok(jorhatQuote.distance < 3, 'Distance uses the two selected nearby map points');
+const movedArea = { lat: 26.63, lng: 92.8, city: 'Tezpur', locality: 'Mission Chariali' };
+const pinnedProfile = {
+  name: 'Jorhat Student', localityId: 'rajgarh', bio: 'Ready for lessons',
+  strongSubjects: [], weakSubjects: ['Mathematics'], qualifications: '', experience: '',
+};
+result = await call('profile', { method: 'PUT', cookie: pinnedStudent.cookie,
+  body: { ...pinnedProfile, homeArea: movedArea } });
+equal(result.status, 429, 'API prevents another map move within 30 days');
+result = await call('profile', { method: 'PUT', cookie: pinnedStudent.cookie,
+  body: { ...pinnedProfile, bio: 'Still learning' } });
+equal(result.status, 200, 'Normal profile edits remain available while location is locked');
+state.accounts[pinnedStudent.data.id].homeChangedAt =
+  new Date(Date.now() - 31 * 86400000).toISOString();
+result = await call('profile', { method: 'PUT', cookie: pinnedStudent.cookie,
+  body: { ...pinnedProfile, homeArea: movedArea } });
+equal(result.status, 200, 'Moving a pin becomes available after rolling 30-day cooldown');
+result = await call('workspaces/student/discovery', { cookie: pinnedStudent.cookie });
+jorhatQuote = result.data.listings.find(x => x.id === pinnedTeacher.data.id);
+equal(jorhatQuote.travelFee, 300, 'Distance pricing is recomputed from new city (capped travel fee)');
+equal(result.data.origin.lat, 26.63, 'Discovery origin follows the new home map marker');
+
 console.log('Shikshak platform API checks passed (' + assertions + ' assertions).');
