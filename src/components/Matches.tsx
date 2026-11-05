@@ -11,7 +11,7 @@ const statuses: { id: ConnectionStatus; label: string; empty: string }[] = [
   { id: 'sent', label: 'Sent', empty: 'Find a listing you like in Explore and send interest.' },
 ];
 
-function Conversation({ listing, catalog, role, close }: { listing: Listing; catalog: Catalog; role: Role; close: () => void }) {
+function Conversation({ listing, catalog, role, currentUserId, close }: { listing: Listing; catalog: Catalog; role: Role; currentUserId: string; close: () => void }) {
   const load = useCallback((signal: AbortSignal) => api.messages(role, listing.id, signal), [role, listing.id]);
   const { data, error, refresh } = useResource(load);
   const [text, setText] = useState('');
@@ -23,7 +23,7 @@ function Conversation({ listing, catalog, role, close }: { listing: Listing; cat
     const list = messageList.current;
     if (list) list.scrollTop = list.scrollHeight;
   }, [data]);
-  const currentUser = catalog.workspaces[role].id;
+  const currentUser = currentUserId;
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,8 +55,8 @@ function Conversation({ listing, catalog, role, close }: { listing: Listing; cat
   </Modal>;
 }
 
-export function Matches({ catalog, role, chatId, clearChat, openChat, explore, notify }: {
-  catalog: Catalog; role: Role; chatId: string | null; clearChat: () => void; openChat: (id: string) => void; explore: () => void; notify: (message: string) => void;
+export function Matches({ catalog, role, currentUserId, chatId, clearChat, openChat, openClassroom, explore, notify }: {
+  catalog: Catalog; role: Role; currentUserId: string; chatId: string | null; clearChat: () => void; openChat: (id: string) => void; openClassroom: (id: string) => void; explore: () => void; notify: (message: string) => void;
 }) {
   const load = useCallback((signal: AbortSignal) => api.connections(role, signal), [role]);
   const { data, error, refresh } = useResource(load);
@@ -93,14 +93,14 @@ export function Matches({ catalog, role, chatId, clearChat, openChat, explore, n
         {data && connections.length === 0 && <div className="empty-state match-empty"><Inbox size={28}/><h3>{tab === 'matched' ? 'No matches yet' : tab === 'incoming' ? 'No interest received' : 'No interest sent'}</h3><p>{statuses.find((item) => item.id === tab)?.empty}</p><button className="secondary-button" onClick={explore}>Explore nearby <ArrowRight size={16}/></button></div>}
         <div className="connection-list">{connections.map((connection) => <article className="connection-row" key={connection.listing.id}>
           <Avatar listing={connection.listing}/><div className="connection-id"><h3>{connection.listing.name}</h3><p>{connection.listing.headline}</p><small><MapPin size={13}/>{connection.listing.locality}</small></div>
-          {connection.status === 'matched' ? <button type="button" className="secondary-button" onClick={() => openChat(connection.listing.id)}><MessageCircle size={16}/> Message</button>
+          {connection.status === 'matched' ? <div className="match-actions"><button type="button" className="secondary-button" onClick={() => openClassroom(connection.listing.id)}><Users size={16}/> Classroom</button><button type="button" className="secondary-button" onClick={() => openChat(connection.listing.id)}><MessageCircle size={16}/> Message</button></div>
             : <button type="button" className="secondary-button" onClick={() => { setDetail(connection); setActionError(''); }}>{connection.status === 'incoming' ? 'Review interest' : 'View profile'} <ArrowRight size={16}/></button>}
         </article>)}</div>
       </section>
-      <aside className="workspace-aside"><span className="aside-icon"><Sparkles size={22}/></span><h2>How matching works</h2><ol><li><Heart size={16}/><span>Send interest to a tutor or learner you’d like to meet.</span></li><li><Users size={16}/><span>When they express interest too, you match.</span></li><li><MessageCircle size={16}/><span>Use messages to discuss a first lesson.</span></li></ol>{catalog.demo && <p className="aside-note">Open Received to try matching with a fictional profile.</p>}</aside>
+      <aside className="workspace-aside"><span className="aside-icon"><Sparkles size={22}/></span><h2>How matching works</h2><ol><li><Heart size={16}/><span>Send interest to a tutor or learner you’d like to meet.</span></li><li><Users size={16}/><span>When they express interest too, you match.</span></li><li><MessageCircle size={16}/><span>Open your shared classroom to schedule lessons, exchange notes and review homework.</span></li></ol>{catalog.demo && <p className="aside-note">Fictional preview profiles cannot match. Create another account to test two-sided matching.</p>}</aside>
     </div>
     {detail && <Modal title={detail.listing.name} onClose={() => { setDetail(null); setActionError(''); }}><ListingDetails listing={detail.listing} status={detail.status} busy={busy} onInterest={() => void match(detail)} onChat={() => { setDetail(null); openChat(detail.listing.id); }}/>{actionError && <ErrorNotice message={actionError}/>}</Modal>}
-    {chat && <Conversation listing={chat.listing} catalog={catalog} role={role} close={clearChat}/>}
+    {chat && <Conversation listing={chat.listing} catalog={catalog} role={role} currentUserId={currentUserId} close={clearChat}/>}
   </main>;
 }
 
