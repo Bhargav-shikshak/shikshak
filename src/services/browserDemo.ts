@@ -11,12 +11,14 @@
 import type { DemoState } from '../../demo/api';
 import { demoApi, initialState } from '../../demo/api';
 import { catalog } from '../../demo/seed';
+import { seedListings } from '../../demo/fixtures';
 import type { PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
 const STATE_KEY = 'shikshak.browser-pilot.v1';
 const SESSION_KEY = 'shikshak.browser-pilot.session.v1';
 const ADMIN_SEED_KEY = 'shikshak-local-demo-bootstrap-for-testing-only';
+const FIXTURE_VERSION = 2;
 
 type DemoInput = {
   name: string;
@@ -122,6 +124,62 @@ function future(days: number): string {
   return new Date(Date.now() + days * 86400000).toISOString();
 }
 
+
+/**
+ * Convert the former preview cards into complete demo accounts/listings.
+ * Uses the legacy listing IDs, so existing saved profiles still refer to the
+ * same people. All future edits and interactions operate on browser state.
+ * The fixture templates only run once for each browser's existing data.
+ */
+async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
+  const demo = state as DemoState & { fixtureVersion?: number };
+  if (demo.fixtureVersion === FIXTURE_VERSION) return false;
+  for (const listing of seedListings) {
+    if (state.accounts[listing.id]) continue;
+    const email = 'sample-' + listing.id + '@shikshak.demo';
+    const existing = Object.values(state.accounts).find(account => account.email === email);
+    if (existing) continue;
+    const created = await checked(state, '/auth/signup', 'POST', {
+      name: listing.name, email, role: listing.role,
+      password: DEMO_PASSWORD, localityId: listing.localityId,
+    }) as PublicAccount;
+    // Keep legacy IDs to preserve any bookmarks created before this migration.
+    const account = state.accounts[created.id];
+    delete state.accounts[created.id];
+    account.id = listing.id;
+    state.accounts[listing.id] = account;
+    const token = sessionFor(state, created);
+    state.sessions[token].userId = listing.id;
+    await checked(state, '/profile', 'PUT', {
+      name: listing.name, localityId: listing.localityId,
+      bio: listing.description.slice(0, 700),
+      strongSubjects: listing.role === 'student' ? [] : [],
+      weakSubjects: listing.role === 'student' ? listing.subjects : [],
+      qualifications: '', experience: '',
+    }, token);
+    const live = await checked(state, '/workspaces/' + listing.role + '/listing', 'PUT', {
+      name: listing.name,
+      headline: listing.headline,
+      localityId: listing.localityId,
+      subjects: listing.subjects,
+      grades: listing.grades,
+      rate: listing.role === 'student' ? listing.rate : state.pricing.baseRate,
+      availability: listing.availability,
+      description: listing.description,
+      published: true,
+    }, token) as { id: string };
+    // The server-owned listing can reuse the avatar and colour from the
+    // original visual sample while staying fully editable in local state.
+    if (live.id === listing.id && state.own[listing.id]) {
+      state.own[listing.id].avatar = listing.avatar;
+      state.own[listing.id].color = listing.color;
+    }
+    delete state.sessions[token];
+  }
+  demo.fixtureVersion = FIXTURE_VERSION;
+  return true;
+}
+
 async function seedBrowserDemo(): Promise<DemoState> {
   const state = initialState();
   const members: { account: PublicAccount; token: string; role: Role }[] = [];
@@ -200,6 +258,8 @@ async function seedBrowserDemo(): Promise<DemoState> {
     id: crypto.randomUUID(), body: 'Welcome! Our first algebra session is scheduled for tomorrow.',
   }, teacher.token);
 
+  // Former UI-only profiles are now regular accounts that can match and chat.
+  await ensureDemoFixtureAccounts(state);
   // Fixture tokens are not an active login. Visitors choose or create an account.
   state.sessions = {};
   void adminToken;
@@ -245,6 +305,9 @@ async function loadOrSeedState(): Promise<DemoState> {
   let state = readState();
   if (!state) {
     state = await seedBrowserDemo();
+    storeState(state);
+  } else if (await ensureDemoFixtureAccounts(state)) {
+    // Upgrade old browser data in place; do not erase accounts, chats, or lessons.
     storeState(state);
   }
   return state;
