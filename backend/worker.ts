@@ -174,6 +174,42 @@ export async function handleApi(request: Request, env: Environment): Promise<Res
         if (!(error instanceof HttpError) || ![401,403].includes(error.status)) throw error;
       } finally { clearSession(request, headers); }
       response = json({ ok: true });
+    } else if (path.startsWith('auth/mfa/')) {
+      const me = await rpc('auth/me');
+      if (me.role !== 'owner') throw new HttpError('Owner access required.', 403);
+      if (method === 'GET' && path === 'auth/mfa/status') {
+        // Supabase validates the JWT before we decode its assurance claim.
+        const user = await (await upstream(env, '/auth/v1/user', {}, token)).json() as Json;
+        let aal = 'aal1';
+        try {
+          const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          aal = JSON.parse(atob(payload))?.aal === 'aal2' ? 'aal2' : 'aal1';
+        } catch { /* AAL1 is the safe default. */ }
+        const factors = Array.isArray(user.factors) ? user.factors : [];
+        response = json({ aal, factors: factors.filter((f: Json) => f.factor_type === 'totp')
+          .map((f: Json) => ({ id: f.id, status: f.status, type: f.factor_type })) });
+      } else if (method === 'POST' && path === 'auth/mfa/enroll') {
+        const factor = await (await upstream(env, '/auth/v1/factors', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ factor_type: 'totp', friendly_name: 'Shikshak Owner' }),
+        }, token)).json() as Json;
+        response = json({ factorId: factor.id, secret: factor.totp?.secret, qrCode: factor.totp?.qr_code });
+      } else if (method === 'POST' && path === 'auth/mfa/verify') {
+        const input = await bodyJson(request);
+        const factorId = typeof input.factorId === 'string' && /^[a-f0-9-]{36}$/i.test(input.factorId) ? input.factorId : '';
+        const code = typeof input.code === 'string' && /^\d{6}$/.test(input.code) ? input.code : '';
+        if (!factorId || !code) throw new HttpError('Enter the six-digit code from your authenticator.');
+        const challenge = await (await upstream(env, '/auth/v1/factors/' + factorId + '/challenge', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        }, token)).json() as Json;
+        const session = await (await upstream(env, '/auth/v1/factors/' + factorId + '/verify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ challenge_id: challenge.id, code }),
+        }, token)).json() as Json;
+        if (!session.access_token || !session.refresh_token) throw new HttpError('Could not complete two-factor authentication.', 401);
+        setSession(request, headers, session);
+        response = json({ ok: true });
+      } else throw new HttpError('MFA endpoint not found.', 404);
     } else if (method === 'POST' && path === 'admin/bootstrap') {
       // A current confirmed account and one-time database setup key are both required.
       const input = await bodyJson(request);
