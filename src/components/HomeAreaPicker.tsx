@@ -19,6 +19,10 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
   const initial = useRef(value ?? center);
+  // Keep the exact tap/drag location in memory for the visible pin. Only a
+  // rounded kilometre-scale coordinate is passed to persisted account state.
+  const selectedPoint = useRef<Point | null>(value ? { lat: value.lat, lng: value.lng } : null);
+  const [visiblePoint, setVisiblePoint] = useState<Point | null>(selectedPoint.current);
   const onChangeRef = useRef(onChange);
   const requestIndex = useRef(0);
   const [search, setSearch] = useState('');
@@ -53,34 +57,65 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     };
   }, [disabled]);
 
+  // When a saved area is loaded, show its approximate pin. After the user
+  // selects a new location, keep the pin on the actual selected pixel instead
+  // of snapping it to the rounded coordinate used for privacy.
   useEffect(() => {
-    if (!map.current) return;
     if (!value) {
+      selectedPoint.current = null;
+      setVisiblePoint(null);
+      return;
+    }
+    const selected = selectedPoint.current;
+    const coarse = selected ? approximateHomePoint(selected) : null;
+    if (coarse?.lat === value.lat && coarse.lng === value.lng) return;
+    selectedPoint.current = { lat: value.lat, lng: value.lng };
+    setVisiblePoint({ lat: value.lat, lng: value.lng });
+  }, [value?.lat, value?.lng]);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    if (!visiblePoint) {
       marker.current?.remove();
       marker.current = null;
       return;
     }
-    const point = L.latLng(value.lat, value.lng);
+    const point = L.latLng(visiblePoint.lat, visiblePoint.lng);
     if (marker.current) marker.current.setLatLng(point);
-    else marker.current = L.marker(point, {
-      keyboard: false, draggable: false,
-      // Custom CSS pin avoids Leaflet's default PNG asset-path problems in Vite.
-      icon: L.divIcon({ className: 'home-area-marker',
-        html: '<span aria-hidden="true"></span>',
-        iconSize: [28, 34], iconAnchor: [14, 30] }),
-    }).addTo(map.current).bindTooltip('Approximate home neighbourhood');
-  }, [value?.lat, value?.lng, disabled]);
+    else {
+      marker.current = L.marker(point, {
+        keyboard: false,
+        draggable: true,
+        autoPan: true,
+        // CSS marker avoids Leaflet's default PNG asset-path issues in Vite.
+        icon: L.divIcon({
+          className: 'home-area-marker',
+          html: '<span aria-hidden="true"></span>',
+          iconSize: [28, 34], iconAnchor: [14, 30],
+        }),
+      }).addTo(instance).bindTooltip('Drag to adjust your home neighbourhood marker');
+      marker.current.on('dragend', event => {
+        const dragged = (event.target as L.Marker).getLatLng();
+        void place({ lat: dragged.lat, lng: dragged.lng });
+      });
+    }
+  }, [visiblePoint?.lat, visiblePoint?.lng, disabled]);
 
   async function place(point: Point) {
     if (disabled) return;
     const index = ++requestIndex.current;
-    const approximate = approximateHomePoint(point);
+    const exact = { lat: point.lat, lng: point.lng };
+    const approximate = approximateHomePoint(exact);
+    selectedPoint.current = exact;
+    setVisiblePoint(exact);
     setError('');
     setPlaces([]);
     setResolving(true);
     onChangeRef.current({ ...approximate, city: '', locality: '' });
     try {
-      const found = await reverseHomeArea(approximate);
+      // Lookup the selected location, not a rounded point up to ~700 m away.
+      const found = await reverseHomeArea(exact);
       if (index !== requestIndex.current) return;
       onChangeRef.current({ ...approximate, city: found.city ?? '', locality: found.locality ?? '' });
       if (!found.city || !found.locality)
@@ -91,6 +126,11 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     } finally {
       if (index === requestIndex.current) setResolving(false);
     }
+  }
+
+  function placeAtMapCenter() {
+    const point = map.current?.getCenter();
+    if (point) void place({ lat: point.lat, lng: point.lng });
   }
 
   async function find() {
@@ -145,10 +185,17 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
       </button>)}
     </div>}
     <div className="home-area-map-wrap">
-      <div ref={mapNode} className="home-area-map" aria-label="Place a marker in your approximate home neighbourhood"/>
+      <div ref={mapNode} className="home-area-map" aria-label="Tap to place a marker, drag an existing marker, or pan the map to use its centre crosshair"/>
+      <span className="home-area-center-target" aria-hidden="true"><Crosshair size={23}/></span>
       <button type="button" className="home-area-locate" onClick={deviceLocation}><LocateFixed size={15}/> Use my location</button>
+      <button type="button" className="home-area-place-center" onClick={placeAtMapCenter}>
+        <Crosshair size={16}/> Place marker at crosshair
+      </button>
     </div>
-    <p className="field-help home-area-help"><Crosshair size={15}/> Tap the map to place or move your neighbourhood marker. The saved point is rounded to about 1 km for privacy.</p>
+    <p className="field-help home-area-help">
+      Tap the map, drag the pin, or move the map beneath the centre crosshair and press “Place marker at crosshair”.
+      Your saved location is rounded to about 1 km for privacy.
+    </p>
     <div className="home-area-fields">
       <label>City<input required maxLength={90} placeholder="Filled from map" value={value?.city ?? ''}
         onChange={event => value && onChange({ ...value, city: event.target.value })}/></label>
