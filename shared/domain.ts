@@ -90,11 +90,19 @@ export interface ClassSession {
   status: 'scheduled' | 'completed' | 'cancelled';
   createdAt: string;
 }
+export interface PdfNoteAttachment {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  mimeType: 'application/pdf';
+}
 export interface LessonNote {
   id: string;
   title: string;
   content: string;
   createdAt: string;
+  /** Browser demo: PDF bytes live in IndexedDB, separately from JSON metadata. */
+  pdf?: PdfNoteAttachment;
 }
 export interface Homework {
   id: string;
