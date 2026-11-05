@@ -211,7 +211,12 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
     const id = keyFor(originalTeacher.id, originalStudent.id);
     const t = state.interests[originalTeacher.id]?.includes(originalStudent.id);
     const s = state.interests[originalStudent.id]?.includes(originalTeacher.id);
-    if (t && s && !pairIds.has(id)) { pairs.unshift([originalTeacher.id, originalStudent.id]); pairIds.add(id); }
+    const accepted = Object.values(state.bookings ?? {}).some(b =>
+      b.teacherId === originalTeacher.id && b.studentId === originalStudent.id && b.status === 'accepted');
+    if ((accepted || (t && s)) && !pairIds.has(id)) {
+      pairs.unshift([originalTeacher.id, originalStudent.id]);
+      pairIds.add(id);
+    }
   }
 
   // A scattering of one-sided interests populates Received/Sent tabs. Do not
