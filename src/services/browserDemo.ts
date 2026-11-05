@@ -13,7 +13,7 @@ import { demoApi, initialState } from '../../demo/api';
 import { catalog } from '../../demo/seed';
 import { seedListings } from '../../demo/fixtures';
 import { addHistoricalActivity, historyProfiles } from '../../demo/history';
-import type { HomeArea, PublicAccount, Role } from '../../shared/domain';
+import type { AccountRole, HomeArea, PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
 const STATE_KEY = 'shikshak.browser-pilot.v1';
@@ -472,7 +472,7 @@ export interface BrowserDemoAccount {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'teacher' | 'admin';
+  role: AccountRole;
   localityId: string;
   homeArea?: HomeArea;
   active: boolean;
@@ -503,7 +503,7 @@ export function listBrowserDemoAccounts(): Promise<BrowserDemoAccount[]> {
         published: state.own[account.id]?.published ?? false,
       }))
       .sort((a, b) => {
-        const order = { student: 0, teacher: 1, admin: 2 };
+        const order: Record<AccountRole, number> = { student: 0, teacher: 1, admin: 2, owner: 3 };
         return order[a.role] - order[b.role] || a.name.localeCompare(b.name);
       });
   });
