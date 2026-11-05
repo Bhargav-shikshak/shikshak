@@ -12,7 +12,7 @@ Shikshak is a neighbourhood-based home tutoring platform. Students find nearby t
 | Profile | Name, neighbourhood, bio, stronger and weaker subjects | Name, neighbourhood, bio, qualifications, experience |
 | Discovery | Nearby tutor map and searchable list, with distance-aware prices | Nearby student map/list with their strong and weak subjects |
 | Matching | Save tutors; mutual interest unlocks messaging | Save students; mutual interest unlocks messaging |
-| Classroom | View classes/notes, submit homework, read feedback | Schedule/complete/cancel lessons, share notes, assign/review homework |
+| Classroom | View/download shared PDF and written notes, submit homework, read feedback | Schedule/complete/cancel lessons, share written or PDF notes, assign/review homework |
 | Dashboard | Classes, homework, tutors and notes | Classes, review queue, students and notes |
 | Rates | Indicative price quote based on neighbourhood distance | Request a custom base rate, subject to admin approval |
 | Admin | No access | Separate administrator console: accounts, moderation and pricing policy |
@@ -38,10 +38,11 @@ Run the production build and comprehensive API checks:
 npm run build
 npm run test:platform
 npm run test:browser-demo
+npm run test:pdf-notes
 npm run preview
 ~~~
 
-The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, converted former previews (including Rahul), normal and quick signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. GitHub Actions runs both tests on main.
+The server integration test covers registration, session isolation, forbidden cross-role actions, listing publication, nearby rate quotes, teacher rate requests, admin approvals, matching, class scheduling, notes, homework submission/review, account suspension and logout. The browser-demo test checks local-only seeded accounts, converted former previews (including Rahul), normal and quick signup, one-click same-role and cross-role switching, reciprocal matching, chat, class scheduling, notes, homework review, role isolation, admin, persistence and reset without network calls. The PDF test checks file validation, IndexedDB binary storage, teacher/student access after matching, non-matched access rejection, and file cleanup. GitHub Actions runs both tests on main.
 
 ## Browser-only demo (default)
 
@@ -147,4 +148,6 @@ The Wrangler Worker identifier remains **studylane** for backward-compatible dep
 
 This implementation is a working pilot and is **not security-reviewed for public release**. Before inviting real students (especially minors), address guardian consent, safeguarding, teacher identity verification, abuse/reporting controls, privacy and data retention requirements. The pilot also needs verified/recoverable identities, notifications, scalable relational storage and backups, secure file uploads for classwork, calendar integration, accessibility/mobile QA, and payments or billing only when the required controls are ready.
 
-The current notes and homework submissions are text-based; external work links may be pasted. No file attachments, live video calling, calendar invitations or money transfers are implemented yet.
+Teachers can now share PDF lesson notes (up to **10 MB**) in browser-demo mode. A teacher opens **Classes → a matched classroom → Notes**, adds a title and either written notes, a PDF, or both, and selects **Share note**. The student sees the PDF in the same classroom with **View** and **Download** options. PDF binary data is kept in the browser's **IndexedDB**, separate from localStorage JSON note metadata. The file persists across account switches and page reloads in the same site/browser, but is not synchronized between devices and can be lost when browser storage is cleared. Reset demo data clears the files too. PDF files are checked for name, MIME type, a PDF header and the 10 MB limit.
+
+**API mode does not support PDF upload yet.** The UI clearly explains this instead of pretending to have uploaded a file. Before production release, connect a private, access-controlled object-storage service, authenticated upload/download endpoints, file scanning, retention rules and size quotas. Text notes continue to work in both modes. Homework submissions are still text/link-based; live video calling, calendar invitations and money transfers are not implemented.
