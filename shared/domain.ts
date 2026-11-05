@@ -1,5 +1,5 @@
 export type Role = 'student' | 'teacher';
-export type AccountRole = Role | 'admin';
+export type AccountRole = Role | 'admin' | 'owner';
 export type BookingStatus = 'pending' | 'accepted' | 'rejected';
 /** Legacy mutual-interest statuses are retained only for old local data migrations. */
 export type ConnectionStatus = 'incoming' | 'sent' | 'matched';
@@ -28,6 +28,7 @@ export interface PublicAccount {
   approvedRate: number | null;
   rateStatus: 'none' | 'pending' | 'approved' | 'rejected';
   active: boolean;
+  teacherVerified?: boolean;
   createdAt: string;
 }
 export interface ListingDraft {
@@ -52,6 +53,7 @@ export interface Listing extends ListingDraft {
   weakSubjects?: string[];
   qualifications?: string;
   experience?: string;
+  teacherVerified?: boolean;
   fictional?: boolean;
 }
 export interface DiscoveryListing extends Listing {
@@ -161,6 +163,8 @@ export interface AdminSnapshot {
   settings: PriceSettings;
   publishedListings: number;
   matchedPairs: number;
-  pendingRates: number;
+  pendingRates: number; // legacy demo
+  pendingVerifications?: number;
+  viewerRole?: 'owner' | 'admin';
 }
 export const defaultFilters: Filters = { query: '', subject: '', grade: '', locality: '', radius: '', maxRate: '', sort: 'distance', saved: false };
