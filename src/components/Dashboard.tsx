@@ -36,6 +36,21 @@ export function Dashboard({ account, openExplore, openProfile, openClassroom }: 
       <h1>Hello, {account.name.split(' ')[0]}.</h1>
       <p>{role === 'teacher' ? 'Your students, class schedule and reviews — in one place.' : 'Your classes, homework and study notes — together at a glance.'}</p>
     </div>
+    <section className="dibya-first-step" aria-label="Recommended next step">
+      <div>
+        <p className="eyebrow">YOUR NEXT STEP</p>
+        <h2>{role === 'teacher' ? 'Ready for your next class?' : 'Ready to find the right tutor?'}</h2>
+        <p>{role === 'teacher'
+          ? 'Check new requests from students, then plan your upcoming lessons.'
+          : 'Find a teacher near you, compare details, and request a class.'}</p>
+      </div>
+      <div className="dibya-first-actions">
+        <button type="button" className="primary-button" onClick={openExplore}>
+          {role === 'teacher' ? 'Review class requests' : 'Find a tutor'} <ArrowRight size={20}/>
+        </button>
+        <button type="button" className="secondary-button" onClick={openProfile}>My profile</button>
+      </div>
+    </section>
     {error && <ErrorNotice message={error} retry={refresh}/>}
     {!data && !error && <p role="status">Loading your learning workspace…</p>}
     {role === 'teacher' && <section className="workspace-panel dashboard-booking-inbox">
