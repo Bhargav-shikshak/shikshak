@@ -1,5 +1,5 @@
 import type {
-  AdminSnapshot, ClassSession, Classroom, ClassroomSummary, Connection, ConnectionStatus,
+  AdminSnapshot, BookingRequest, BookingStatus, ClassSession, Classroom, ClassroomSummary, ConnectionStatus,
   DiscoveryListing, HomeArea, Homework, LessonNote, Listing, ListingDraft, Message, Point,
   PdfNoteAttachment, PriceSettings, PublicAccount, Role,
 } from '../shared/domain';
@@ -13,6 +13,8 @@ export interface DemoState {
   own: Record<string, Listing>;
   saves: Record<string, string[]>;
   interests: Record<string, string[]>;
+  bookings?: Record<string, BookingRequest>;
+  bookingVersion?: number;
   messages: Record<string, Message[]>;
   classrooms: Record<string, Classroom>;
   pricing: PriceSettings;
@@ -24,6 +26,7 @@ export const initialPricing: PriceSettings = {
 export function initialState(): DemoState {
   return {
     accounts: {}, sessions: {}, own: {}, saves: {}, interests: {}, messages: {},
+    bookings: {}, bookingVersion: 1,
     classrooms: {}, pricing: { ...initialPricing }, attempts: {},
   };
 }
@@ -94,6 +97,69 @@ function statusFor(state: DemoState, me: string, other: string): ConnectionStatu
   if (outgoing && incoming) return 'matched';
   if (incoming) return 'incoming';
   return outgoing ? 'sent' : null;
+}
+
+/** Migrate old demo mutual interests without deleting existing classroom or chat history.
+ * Existing reciprocal pairs become accepted bookings. One-way teacher-originated
+ * interest is discarded; only student-originated requests remain pending.
+ */
+function ensureBookingState(state: DemoState): Record<string, BookingRequest> {
+  const bookings = state.bookings ??= {};
+  if (state.bookingVersion === 1) return bookings;
+  const oldInterests = state.interests ?? {};
+  for (const student of Object.values(state.accounts).filter(a => a.role === 'student')) {
+    for (const teacher of Object.values(state.accounts).filter(a => a.role === 'teacher')) {
+      const outgoing = oldInterests[student.id]?.includes(teacher.id);
+      const incoming = oldInterests[teacher.id]?.includes(student.id);
+      const key = pairKey(student.id, teacher.id);
+      if (!outgoing || Object.values(bookings).some(b => pairKey(b.studentId, b.teacherId) === key)) continue;
+      const teacherListing = state.own[teacher.id];
+      const studentListing = state.own[student.id];
+      if (!teacherListing) continue;
+      const session = state.classrooms[key]?.sessions.find(s => s.status === 'scheduled');
+      const startsAt = session?.startsAt ?? new Date(Date.now() + 7 * 86400000).toISOString();
+      const subject = teacherListing.subjects.find(s => studentListing?.subjects.includes(s)) ??
+        teacherListing.subjects[0] ?? 'Mathematics';
+      const grade = teacherListing.grades.find(g => studentListing?.grades.includes(g)) ??
+        teacherListing.grades[0] ?? 'Classes 9–10';
+      const booked: BookingRequest = {
+        id: 'legacy-booking-' + student.id + '-' + teacher.id,
+        studentId: student.id, teacherId: teacher.id,
+        studentName: student.name, teacherName: teacher.name,
+        subject, grade, startsAt, durationMinutes: session?.durationMinutes ?? 60,
+        note: incoming ? 'Existing tutoring relationship migrated from an earlier demo.' :
+          'Earlier student request migrated from the demo.',
+        quotedRate: quote(state, teacherListing, userArea(student)).rate,
+        status: incoming ? 'accepted' : 'pending',
+        createdAt: student.createdAt, respondedAt: incoming ? teacher.createdAt : null,
+      };
+      bookings[booked.id] = booked;
+    }
+  }
+  state.bookingVersion = 1;
+  return bookings;
+}
+function bookingFor(state: DemoState, studentId: string, teacherId: string): BookingRequest | null {
+  const matching = Object.values(ensureBookingState(state))
+    .filter(b => b.studentId === studentId && b.teacherId === teacherId);
+  return matching.find(b => b.status === 'accepted') ??
+    matching.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
+}
+function bookingStatusFor(state: DemoState, studentId: string, teacherId: string): BookingStatus | null {
+  return bookingFor(state, studentId, teacherId)?.status ?? null;
+}
+/** Never expose the student's map location, neighbourhood, home coordinates,
+ * public discovery details, or academic profile to the teacher.
+ * A short booking-specific identity is sufficient for classroom navigation.
+ */
+function privateStudentPartner(student: Account): Listing {
+  return {
+    id: student.id, role: 'student', name: student.name,
+    headline: 'Student · active class booking',
+    localityId: '', locality: '', location: { lat: 0, lng: 0 },
+    subjects: [], grades: [], rate: 0, availability: '',
+    description: '', published: false, avatar: 0, color: 'sage',
+  };
 }
 
 /** Accept only small, plausible PDF metadata in the in-browser pilot.
@@ -191,16 +257,21 @@ function newSession(request: Request, state: DemoState, userId: string) {
   return authCookie(request, token);
 }
 function onlyMatchedRoom(state: DemoState, me: Account, otherId: string) {
-  if (!otherId || statusFor(state, me.id, otherId) !== 'matched') return null;
+  if (!otherId) return null;
   const peer = state.accounts[otherId];
   if (!peer || !peer.active || peer.role === 'admin' || peer.role === me.role) return null;
+  if (bookingStatusFor(state,
+    me.role === 'student' ? me.id : peer.id,
+    me.role === 'teacher' ? me.id : peer.id) !== 'accepted') return null;
   const studentId = me.role === 'student' ? me.id : peer.id;
   const teacherId = me.role === 'teacher' ? me.id : peer.id;
   const key = pairKey(me.id, otherId);
   state.classrooms[key] ??= { studentId, teacherId, sessions: [], notes: [], homework: [] };
   return state.classrooms[key];
 }
-function publicPartner(state: DemoState, partnerId: string) {
+function publicPartner(state: DemoState, partnerId: string, viewerRole: Role) {
+  const member = state.accounts[partnerId];
+  if (viewerRole === 'teacher' && member?.role === 'student') return privateStudentPartner(member);
   const listing = state.own[partnerId];
   return listing ? enrich(state, listing) : null;
 }
@@ -215,6 +286,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
   const method = request.method;
   if (parts[0] !== 'api' || parts[1] !== 'v1') return fail('Endpoint not found.', 404);
   if (parts.length === 3 && parts[2] === 'catalog' && method === 'GET') return json(catalog);
+  ensureBookingState(state);
 
   if (parts[2] === 'auth' && parts.length === 4) {
     if (parts[3] === 'me' && method === 'GET') {
@@ -287,9 +359,8 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
   if (parts[2] === 'admin') {
     if (me.role !== 'admin') return fail('Administrator access only.', 403);
     if (parts.length === 3 && method === 'GET') {
-      const matches = new Set<string>();
-      for (const [from, targets] of Object.entries(state.interests)) for (const to of targets)
-        if (statusFor(state, from, to) === 'matched') matches.add(pairKey(from, to));
+      const matches = new Set(Object.values(ensureBookingState(state))
+        .filter(b => b.status === 'accepted').map(b => pairKey(b.studentId, b.teacherId)));
       const response: AdminSnapshot = {
         accounts: Object.values(state.accounts).map(safeAccount),
         settings: state.pricing,
@@ -406,6 +477,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     }
   }
   if (parts.length === 5 && resource === 'discovery' && method === 'GET') {
+    if (role === 'teacher') return fail('Student discovery is not available to teachers.', 403);
     const params = url.searchParams;
     const origin = catalog.localities.find(area => area.id === params.get('locality')) ?? userLocality;
     const query = (params.get('query') ?? '').toLowerCase().trim().slice(0, 140);
@@ -420,7 +492,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       return {
         ...enrich(state, item),
         distance, saved: state.saves[myId]?.includes(item.id) ?? false,
-        connection: statusFor(state, myId, item.id),
+        connection: bookingStatusFor(state, myId, item.id),
         ...(pricing ? { rate: pricing.rate, baseRate: pricing.baseRate, travelFee: pricing.travelFee } : {}),
       };
     }).filter(item =>
@@ -433,24 +505,91 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       ? a.rate - b.rate || a.distance - b.distance : a.distance - b.distance);
     return json({ listings, origin: { lat: origin.lat, lng: origin.lng }, total: published.length });
   }
-  if (parts.length === 5 && resource === 'connections' && method === 'GET') {
-    const connections: Connection[] = others.flatMap(listing => {
-      const status = statusFor(state, myId, listing.id);
-      return status && (listing.published || status === 'matched')
-        ? [{ listing: enrich(state, listing), status }] : [];
-    });
-    return json(connections);
+  if (parts.length === 5 && resource === 'bookings' && method === 'GET') {
+    const own = Object.values(ensureBookingState(state)).filter(booking =>
+      role === 'teacher' ? booking.teacherId === myId : booking.studentId === myId);
+    return json(own.map(booking => ({
+      ...booking,
+      studentName: state.accounts[booking.studentId]?.name ?? booking.studentName,
+      teacherName: state.accounts[booking.teacherId]?.name ?? booking.teacherName,
+    })).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }
+  if (parts.length === 5 && resource === 'bookings' && method === 'POST') {
+    if (role !== 'student') return fail('Only students can request classes.', 403);
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    const teacherId = cleanText(body?.teacherId, 80);
+    const teacher = state.accounts[teacherId];
+    const listing = state.own[teacherId];
+    if (!teacher || !teacher.active || teacher.role !== 'teacher' || !listing?.published)
+      return fail('This tutor is not available for booking.', 404);
+    const subject = cleanText(body?.subject, 80);
+    const grade = cleanText(body?.grade, 80);
+    const note = cleanText(body?.note, 600);
+    const startsAt = validDate(body?.startsAt);
+    const durationMinutes = Number(body?.durationMinutes);
+    if (!listing.subjects.includes(subject) || !listing.grades.includes(grade) ||
+      !startsAt || Date.parse(startsAt) < Date.now() + 15 * 60000 ||
+      !Number.isInteger(durationMinutes) || durationMinutes < 30 || durationMinutes > 180)
+      return fail('Choose a subject, class level, future time and duration (30–180 minutes).');
+    if (Object.values(ensureBookingState(state)).some(b => b.studentId === myId &&
+      b.teacherId === teacherId && (b.status === 'pending' || b.status === 'accepted')))
+      return fail('You already have a pending or accepted booking with this tutor.', 409);
+    const booking: BookingRequest = {
+      id: id(), teacherId, studentId: myId,
+      teacherName: teacher.name, studentName: me.name,
+      subject, grade, startsAt, durationMinutes, note,
+      quotedRate: quote(state, listing, userLocality).rate,
+      status: 'pending', createdAt: new Date().toISOString(), respondedAt: null,
+    };
+    ensureBookingState(state)[booking.id] = booking;
+    return json(booking, 201);
+  }
+  if (parts.length === 6 && resource === 'bookings' && method === 'PUT') {
+    if (role !== 'teacher') return fail('Only teachers can respond to booking requests.', 403);
+    const booking = ensureBookingState(state)[targetId];
+    if (!booking || booking.teacherId !== myId) return fail('Booking request not found.', 404);
+    const body = await request.json().catch(() => null) as { decision?: string } | null;
+    if (body?.decision !== 'accept' && body?.decision !== 'reject')
+      return fail('Choose accept or reject.');
+    if (booking.status !== 'pending') return fail('This booking has already been decided.', 409);
+    if (!state.accounts[booking.studentId]?.active) return fail('Student account is unavailable.', 409);
+    if (body.decision === 'accept') {
+      booking.status = 'accepted';
+      const key = pairKey(booking.studentId, booking.teacherId);
+      const room = state.classrooms[key] ??= {
+        studentId: booking.studentId, teacherId: booking.teacherId,
+        sessions: [], notes: [], homework: [],
+      };
+      room.sessions.push({
+        id: id(), title: booking.subject + ' · First class',
+        startsAt: booking.startsAt, durationMinutes: booking.durationMinutes,
+        status: 'scheduled', createdAt: new Date().toISOString(),
+      });
+    } else booking.status = 'rejected';
+    booking.respondedAt = new Date().toISOString();
+    return json(booking);
+  }
+  if (parts.length === 5 && resource === 'connections' && method === 'GET')
+    return fail('Mutual interest has been replaced by class bookings.', 410);
   if (parts.length === 5 && resource === 'classrooms' && method === 'GET') {
-    const summaries: ClassroomSummary[] = others.flatMap(partner => {
-      const room = onlyMatchedRoom(state, me, partner.id);
-      return room && !partner.fictional ? [{ partner: enrich(state, partner), classroom: room }] : [];
-    });
+    const summaries: ClassroomSummary[] = Object.values(ensureBookingState(state))
+      .filter(b => b.status === 'accepted' &&
+        (role === 'teacher' ? b.teacherId === myId : b.studentId === myId))
+      .map(booking => {
+        const partnerId = role === 'teacher' ? booking.studentId : booking.teacherId;
+        const room = onlyMatchedRoom(state, me, partnerId);
+        const partner = publicPartner(state, partnerId, role);
+        return room && partner ? { partner, classroom: room } : null;
+      }).filter((value): value is ClassroomSummary => !!value);
     return json(summaries);
   }
 
-  const target = others.find(item => item.id === targetId);
+  const target = role === 'teacher' && resource === 'connections'
+    ? (bookingStatusFor(state, targetId ?? '', myId) === 'accepted'
+        ? state.own[targetId] ?? privateStudentPartner(state.accounts[targetId]) : undefined)
+    : others.find(item => item.id === targetId);
   if (parts.length === 7 && resource === 'listings' && target?.published) {
+    if (role === 'teacher') return fail('Teachers cannot browse or save student profiles.', 403);
     if (action === 'save' && method === 'PUT') {
       const data = await request.json().catch(() => null) as { saved?: boolean } | null;
       if (typeof data?.saved !== 'boolean') return fail('Choose whether to save this profile.');
@@ -460,16 +599,12 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       state.saves[myId] = [...saved];
       return json({ saved: data.saved });
     }
-    if (action === 'interest' && method === 'PUT') {
-      if (target.fictional) return fail('This is a fictional preview profile. Sign up another real account to test matching.', 409);
-      if (!state.own[myId]?.published) return fail('Publish your own listing before sending interest.', 409);
-      state.interests[myId] = [...new Set([...(state.interests[myId] ?? []), target.id])];
-      return json({ status: statusFor(state, myId, target.id) });
-    }
+    if (action === 'interest' && method === 'PUT')
+      return fail('Mutual interest is no longer available. Request a class instead.', 410);
   }
   if (resource === 'connections' && target) {
     const room = onlyMatchedRoom(state, me, target.id);
-    if (!room || target.fictional) return fail('This feature opens after a mutual match between real accounts.', 403);
+    if (!room) return fail('Classes and messaging open after a teacher accepts the booking.', 403);
     if (parts.length === 7 && action === 'messages') {
       const key = pairKey(myId, target.id);
       const messages = state.messages[key] ?? [];
