@@ -6,6 +6,7 @@ import { api, isBrowserDemo } from './api';
 import { useResource } from './useResource';
 import { ErrorNotice } from './components/Common';
 import { Auth } from './components/Auth';
+import { DemoAccountSwitcher } from './components/DemoAccountSwitcher';
 import { Admin } from './components/Admin';
 import { Classroom } from './components/Classroom';
 import { ClassroomsIndex } from './components/ClassroomsIndex';
@@ -126,7 +127,10 @@ function App() {
       <span className="admin-header-label"><ShieldCheck size={17}/> Admin access</span>
       <button type="button" className="secondary-button" disabled={signingOut} onClick={() => void logout()}><LogOut size={16}/> Log out</button>
     </div></header>
-    {isBrowserDemo && <div className="browser-demo-bar" role="note">Browser demo · data is stored on this device only. Admin permissions are simulated for testing.</div>}
+    {isBrowserDemo && <div className="browser-demo-bar" role="note">
+      <span>Browser demo · accounts stay on this device; admin permissions are simulated.</span>
+      <DemoAccountSwitcher catalog={catalog} current={session} onSwitch={loggedIn}/>
+    </div>}
     <Admin/>
     <footer className="portal-footer"><strong>Shikshak</strong> · Restricted administration</footer>
     {toast && <div className="toast" role="status"><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast(null)}><X size={16}/></button></div>}
@@ -158,13 +162,16 @@ function App() {
         <button className="portal-logout icon-button" type="button" disabled={signingOut} aria-label="Log out" title="Log out" onClick={() => void logout()}><LogOut size={18}/></button>
       </div>
     </div></header>
-    {isBrowserDemo && <div className="browser-demo-bar" role="note">Browser demo · accounts and classwork stay on this device. Do not enter private student information.</div>}
-    {view === 'home' && <Dashboard key={role} account={session} openExplore={() => go('explore')} openProfile={() => go('profile')} openClassroom={openClassroom}/>}
-    {view === 'explore' && <Explore key={role} catalog={catalog} role={role} onChat={openChat} notify={notify}/>}
-    {view === 'matches' && <Matches key={role} catalog={catalog} role={role} currentUserId={session.id} chatId={chatId} clearChat={() => setChatId(null)} openChat={openChat} openClassroom={openClassroom} explore={() => go('explore')} notify={notify}/>}
-    {view === 'classrooms' && <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>}
-    {view === 'classroom' && (partnerId ? <Classroom role={role} partnerId={partnerId} back={() => go('classrooms')} message={openChat}/> : <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>)}
-    {view === 'listing' && <OwnListing key={role + session.localityId} catalog={catalog} role={role} account={session} onSaved={listing => notify(listing.published ? 'Your listing is visible in discovery.' : 'Your listing was saved privately.')}/>}
+    {isBrowserDemo && <div className="browser-demo-bar" role="note">
+      <span>Browser demo · switch users to test matches, chat and classes. Avoid real personal information.</span>
+      <DemoAccountSwitcher catalog={catalog} current={session} onSwitch={loggedIn}/>
+    </div>}
+    {view === 'home' && <Dashboard key={session.id} account={session} openExplore={() => go('explore')} openProfile={() => go('profile')} openClassroom={openClassroom}/>}
+    {view === 'explore' && <Explore key={session.id} catalog={catalog} role={role} onChat={openChat} notify={notify}/>}
+    {view === 'matches' && <Matches key={session.id} catalog={catalog} role={role} currentUserId={session.id} chatId={chatId} clearChat={() => setChatId(null)} openChat={openChat} openClassroom={openClassroom} explore={() => go('explore')} notify={notify}/>}
+    {view === 'classrooms' && <ClassroomsIndex key={session.id} account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>}
+    {view === 'classroom' && (partnerId ? <Classroom key={session.id + ':' + partnerId} role={role} partnerId={partnerId} back={() => go('classrooms')} message={openChat}/> : <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>)}
+    {view === 'listing' && <OwnListing key={session.id + ':' + session.localityId} catalog={catalog} role={role} account={session} onSaved={listing => notify(listing.published ? 'Your listing is visible in discovery.' : 'Your listing was saved privately.')}/>}
     {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')} openClassroom={openClassroom}/>}
     <footer className="portal-footer"><strong>Shikshak</strong> · Neighbourhood learning, made simpler. <a href="#admin">Admin access</a></footer>
     {toast && <div className="toast" role="status"><HeartHandshake size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
