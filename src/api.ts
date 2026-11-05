@@ -6,8 +6,7 @@ import type {
 
 const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
 const root = (env?.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '');
-// Local browser demonstration is the default until a real backend is connected.
-// Set VITE_SERVICE_MODE=api to use the existing Cloudflare/HTTP API instead.
+// Development can use the local demo. Production is connected through same-origin APIs.
 export const isBrowserDemo = env?.VITE_SERVICE_MODE !== 'api';
 const workspace = (role: Role) => '/workspaces/' + role;
 const roomPath = (role: Role, partnerId: string) =>
@@ -34,6 +33,7 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
     throw new Error(data?.message ?? 'The Shikshak API could not complete this request.');
   return data as T;
 }
+export interface SignupConfirmation { confirmationRequired: true; message: string }
 export interface Registration {
   name: string; email: string; password: string; role: Role;
   localityId: string;
@@ -45,10 +45,31 @@ export interface ProfileInput {
   strongSubjects: string[]; weakSubjects: string[];
   qualifications: string; experience: string;
 }
+
+async function uploadPdf(role: Role, partnerId: string, file: File, kind: 'note' | 'assignment' | 'submission'): Promise<PdfNoteAttachment> {
+  const form = new FormData();
+  form.set('file', file);
+  form.set('kind', kind);
+  const response = await fetch(root + workspace(role) + '/connections/' + encodeURIComponent(partnerId) + '/files', {
+    method: 'POST', credentials: 'include', body: form,
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message ?? 'PDF upload failed. Please retry.');
+  return result as PdfNoteAttachment;
+}
+async function downloadPdf(role: Role, partnerId: string, id: string): Promise<Blob> {
+  const response = await fetch(root + workspace(role) + '/connections/' + encodeURIComponent(partnerId) + '/files/' + encodeURIComponent(id), { credentials: 'include' });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message ?? 'Could not download this PDF.');
+  }
+  return response.blob();
+}
+
 export const api = {
   catalog: (signal?: AbortSignal) => request<Catalog>('/catalog', { signal }),
   me: (signal?: AbortSignal) => request<PublicAccount>('/auth/me', { signal }),
-  signup: (data: Registration) => request<PublicAccount>('/auth/signup', { method: 'POST', body: data }),
+  signup: (data: Registration) => request<PublicAccount | SignupConfirmation>('/auth/signup', { method: 'POST', body: data }),
   login: (email: string, password: string) =>
     request<PublicAccount>('/auth/login', { method: 'POST', body: { email, password } }),
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
@@ -95,7 +116,10 @@ export const api = {
       method: 'POST', body: { title, content, ...(pdf ? { pdf } : {}) },
     }),
   sharePdfNote: async (role: Role, partnerId: string, title: string, content: string, file: File): Promise<LessonNote> => {
-    if (!isBrowserDemo) throw new Error('PDF uploads will be available in API mode after secure file storage is connected.');
+    if (!isBrowserDemo) {
+      const pdf = await uploadPdf(role, partnerId, file, 'note');
+      return api.note(role, partnerId, title, content, pdf);
+    }
     if (role !== 'teacher') throw new Error('Only teachers can share PDF notes.');
     // Verify an active teacher/student match before writing binary data.
     await api.classroom(role, partnerId);
@@ -109,11 +133,12 @@ export const api = {
     }
   },
   getNotePdf: async (role: Role, partnerId: string, noteId: string): Promise<Blob> => {
-    if (!isBrowserDemo) throw new Error('PDF viewing requires integrated backend file storage.');
+    
     // Authorize the current account against the actual matched classroom.
     const room = await api.classroom(role, partnerId);
     const pdf = room.notes.find(note => note.id === noteId)?.pdf;
     if (!pdf) throw new Error('This classroom note has no PDF attached.');
+    if (!isBrowserDemo) return downloadPdf(role, partnerId, pdf.id);
     const { loadPdfNote } = await import('./services/pdfNotes');
     const blob = await loadPdfNote(pdf.id);
     if (!blob) throw new Error('PDF not found in this browser. It may have been cleared from site storage.');
@@ -126,7 +151,10 @@ export const api = {
   assignHomeworkPdf: async (
     role: Role, partnerId: string, title: string, instructions: string, dueAt: string, file: File,
   ): Promise<Homework> => {
-    if (!isBrowserDemo) throw new Error('PDF homework uploads need backend file storage before they can be enabled.');
+    if (!isBrowserDemo) {
+      const pdf = await uploadPdf(role, partnerId, file, 'assignment');
+      return api.assign(role, partnerId, title, instructions, dueAt, pdf);
+    }
     if (role !== 'teacher') throw new Error('Only teachers can attach assignment worksheets.');
     await api.classroom(role, partnerId);
     const storage = await import('./services/pdfNotes');
@@ -147,7 +175,10 @@ export const api = {
   submitHomeworkPdf: async (
     role: Role, partnerId: string, id: string, submission: string, file: File,
   ): Promise<Homework> => {
-    if (!isBrowserDemo) throw new Error('PDF homework uploads need backend file storage before they can be enabled.');
+    if (!isBrowserDemo) {
+      const pdf = await uploadPdf(role, partnerId, file, 'submission');
+      return api.submitHomework(role, partnerId, id, submission, pdf);
+    }
     if (role !== 'student') throw new Error('Only students can submit PDF answer sheets.');
     const room = await api.classroom(role, partnerId);
     const homework = room.homework.find(item => item.id === id);
@@ -167,7 +198,7 @@ export const api = {
   removeHomeworkSubmissionPdf: async (
     role: Role, partnerId: string, id: string, submission: string,
   ): Promise<Homework> => {
-    if (!isBrowserDemo) throw new Error('PDF changes need backend file storage.');
+    if (!isBrowserDemo) return api.submitHomework(role, partnerId, id, submission, undefined, true);
     if (role !== 'student') throw new Error('Only students can change their homework submission.');
     const room = await api.classroom(role, partnerId);
     const homework = room.homework.find(item => item.id === id);
@@ -182,11 +213,12 @@ export const api = {
   getHomeworkPdf: async (
     role: Role, partnerId: string, homeworkId: string, kind: 'assignment' | 'submission',
   ): Promise<Blob> => {
-    if (!isBrowserDemo) throw new Error('PDF viewing requires connected backend file storage.');
+    
     const room = await api.classroom(role, partnerId);
     const item = room.homework.find(homework => homework.id === homeworkId);
     const pdf = kind === 'assignment' ? item?.assignmentPdf : item?.submissionPdf;
     if (!pdf) throw new Error('There is no PDF attached to this homework.');
+    if (!isBrowserDemo) return downloadPdf(role, partnerId, pdf.id);
     const { loadPdfNote } = await import('./services/pdfNotes');
     const blob = await loadPdfNote(pdf.id);
     if (!blob) throw new Error('PDF not found in this browser. It may have been cleared from site storage.');

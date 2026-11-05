@@ -167,15 +167,15 @@ export function Classroom({ role, partnerId, back, message }: {
               <form className="editor-form classroom-form" onSubmit={createNote}>
                 <label>Note title<input required maxLength={100} value={noteTitle} onChange={event => setNoteTitle(event.target.value)} placeholder="e.g. Quadratic equations"/></label>
                 <label>Notes (optional if uploading a PDF)<textarea rows={6} maxLength={8000} value={noteBody} onChange={event => setNoteBody(event.target.value)} placeholder="Write your lesson summary, links or revision guidance."/></label>
-                {isBrowserDemo ? <div className="classroom-file-picker">
+                <div className="classroom-file-picker">
                   <label htmlFor="teacher-note-pdf"><FileUp size={17}/> Attach a PDF (maximum 10 MB)</label>
                   <input id="teacher-note-pdf" ref={pdfInput} type="file" accept=".pdf,application/pdf"
                     onChange={event => setNotePdf(event.target.files?.[0] ?? null)}/>
                   {notePdf && <div className="classroom-selected-pdf"><span>{notePdf.name} · {(notePdf.size / (1024 * 1024)).toFixed(2)} MB</span>
                     <button type="button" aria-label="Remove selected PDF" onClick={() => { setNotePdf(null); if (pdfInput.current) pdfInput.current.value = ''; }}><X size={16}/></button>
                   </div>}
-                  <small>PDFs are stored on this browser only. They will be available when you switch between accepted demo accounts here.</small>
-                </div> : <p className="classroom-file-warning">PDF uploads will be enabled after backend file storage is connected. Text notes still work.</p>}
+                  <small>{isBrowserDemo ? 'PDFs are stored in this browser for demo testing.' : 'Only you and this student can access classroom PDFs.'}</small>
+                </div>
                 <button type="submit" className="primary-button" disabled={!!busy || (!noteBody.trim() && !notePdf)}>Share note{notePdf ? ' and PDF' : ''}</button>
               </form>
             </> : <><h2>Your study library</h2><p className="admin-intro">Your tutor's notes stay in this classroom for you to revisit after each lesson.</p></>}
@@ -196,7 +196,7 @@ export function Classroom({ role, partnerId, back, message }: {
               {homework.review && <div className="classroom-response"><strong>Teacher feedback</strong><p>{homework.review}</p></div>}
               {role === 'student' && !homework.reviewedAt && <div className="classroom-reply">
                 <label>Submit homework (written answer optional with PDF)<textarea rows={3} maxLength={8000} value={responses[homework.id] ?? ''} placeholder="Your solution, progress, or a link to your completed work" onChange={event => setResponses(v => ({ ...v, [homework.id]: event.target.value }))}/></label>
-                {isBrowserDemo ? <div className="classroom-file-picker">
+                <div className="classroom-file-picker">
                   <label htmlFor={'student-homework-pdf-' + homework.id}><FileUp size={17}/> Upload PDF answers (maximum 10 MB)</label>
                   <input id={'student-homework-pdf-' + homework.id} type="file" accept=".pdf,application/pdf" disabled={!!busy}
                     ref={element => { answerInputs.current[homework.id] = element; }}
@@ -207,8 +207,8 @@ export function Classroom({ role, partnerId, back, message }: {
                       if (answerInputs.current[homework.id]) answerInputs.current[homework.id]!.value = '';
                     }}><X size={16}/></button></div>}
                   {homework.submissionPdf && <small>Already submitted a PDF. Choose another PDF to replace it, or write an updated answer.</small>}
-                  <small>Only this browser's demo accounts can access the uploaded file.</small>
-                </div> : <p className="classroom-file-warning">PDF submissions need backend storage. You can still submit written answers.</p>}
+                  <small>{isBrowserDemo ? 'Only this browser’s demo accounts can access the file.' : 'Your answers are shared privately with your tutor when submitted.'}</small>
+                </div>
                 <button type="button" disabled={!!busy || (!(responses[homework.id] ?? '').trim() && !answerPdfs[homework.id])}
                   className="secondary-button" onClick={() => homeworkAction(homework)}><Send size={16}/>{homework.submittedAt ? 'Update submission' : 'Submit work'}</button>
               </div>}
@@ -223,7 +223,7 @@ export function Classroom({ role, partnerId, back, message }: {
               <form className="editor-form classroom-form" onSubmit={createHomework}>
                 <label>Assignment title<input required maxLength={100} value={homeworkTitle} onChange={event => setHomeworkTitle(event.target.value)} placeholder="e.g. Chapter 3 exercises"/></label>
                 <label>Instructions (optional with PDF)<textarea rows={5} maxLength={3000} value={instructions} onChange={event => setInstructions(event.target.value)} placeholder="Explain what to complete and how to submit."/></label>
-                {isBrowserDemo ? <div className="classroom-file-picker">
+                <div className="classroom-file-picker">
                   <label htmlFor="teacher-assignment-pdf"><FileUp size={17}/> Attach a PDF worksheet (maximum 10 MB)</label>
                   <input id="teacher-assignment-pdf" type="file" accept=".pdf,application/pdf" disabled={!!busy} ref={assignmentPdfInput}
                     onChange={event => setAssignmentPdf(event.target.files?.[0] ?? null)}/>
@@ -232,7 +232,7 @@ export function Classroom({ role, partnerId, back, message }: {
                       setAssignmentPdf(null); if (assignmentPdfInput.current) assignmentPdfInput.current.value = '';
                     }}><X size={16}/></button></div>}
                   <small>The student can view or download this worksheet from their accepted classroom.</small>
-                </div> : <p className="classroom-file-warning">PDF worksheets need backend file storage. Text assignments still work.</p>}
+                </div>
                 <label>Due date<input type="datetime-local" required value={dueAt} onChange={event => setDueAt(event.target.value)}/></label>
                 <button className="primary-button" type="submit" disabled={!!busy || (!instructions.trim() && !assignmentPdf)}>Assign homework{assignmentPdf ? ' with PDF' : ''}</button>
               </form>

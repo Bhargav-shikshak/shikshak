@@ -163,7 +163,10 @@ ok(!('location' in requested.data) && !('homeArea' in requested.data),
 result = await call('workspaces/teacher/bookings', { cookie: teacher.cookie });
 equal(result.status, 200, 'Tutor receives only direct booking requests');
 ok(result.data.some(x => x.id === requested.data.id), 'Tutor sees student request');
-ok(!JSON.stringify(result.data).includes('rajgarh') && !JSON.stringify(result.data).includes('26.'),
+const bookingFields = new Set(['id', 'teacherId', 'studentId', 'studentName', 'teacherName',
+  'subject', 'grade', 'startsAt', 'durationMinutes', 'note', 'quotedRate', 'status', 'createdAt', 'respondedAt']);
+// Inspect the response contract: timestamps can legitimately contain "26.".
+ok(result.data.every(booking => Object.keys(booking).every(key => bookingFields.has(key))),
   'Tutor booking response contains no student location coordinates');
 result = await call('workspaces/teacher/connections/' + student.data.id + '/classroom', { cookie: teacher.cookie });
 equal(result.status, 404, 'Tutor cannot enumerate or enter a classroom before approving the booking');

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, ExternalLink, FileText } from 'lucide-react';
 import type { LessonNote, Role } from '../../shared/domain';
-import { api, isBrowserDemo } from '../api';
+import { api } from '../api';
 
 export function PdfNoteLinks({ role, partnerId, note }: {
   role: Role;
@@ -43,7 +43,6 @@ export function PdfNoteLinks({ role, partnerId, note }: {
       <small>PDF · {(pdf.sizeBytes / (1024 * 1024)).toFixed(2)} MB</small>
       {loading && <small role="status">Loading PDF from this browser…</small>}
       {problem && <small role="alert" className="classroom-pdf-error">{problem}</small>}
-      {!isBrowserDemo && <small>Attachments require connected file storage.</small>}
     </div>
     {url && <div className="classroom-pdf-links">
       <a className="secondary-button" href={url} target="_blank" rel="noopener noreferrer" aria-label={'Open PDF ' + pdf.name}><ExternalLink size={15}/> View</a>

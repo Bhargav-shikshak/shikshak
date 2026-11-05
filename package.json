@@ -16,7 +16,8 @@
     "test:platform": "node scripts/verify-platform.mjs",
     "test:browser-demo": "node scripts/verify-browser-demo.mjs",
     "test:pdf-notes": "node scripts/verify-pdf-notes.mjs",
-    "test:home-area": "node scripts/verify-home-area.mjs"
+    "test:home-area": "node scripts/verify-home-area.mjs",
+    "test:backend": "node scripts/verify-backend.mjs"
   },
   "dependencies": {
     "leaflet": "1.9.4",
