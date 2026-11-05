@@ -27,7 +27,9 @@ export function initialState(): DemoState {
     classrooms: {}, pricing: { ...initialPricing }, attempts: {},
   };
 }
-type Options = { adminBootstrapToken?: string };
+// Trusted in-process override used only by the browser-local demo adapter.
+// The deployed HTTP worker never derives this value from client request headers.
+type Options = { adminBootstrapToken?: string; browserSessionToken?: string };
 const opposite = (role: Role): Role => role === 'student' ? 'teacher' : 'student';
 const json = (body: unknown, status = 200, headers?: HeadersInit): Response =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -45,11 +47,11 @@ function authCookie(request: Request, token: string) {
 function expiredCookie(request: Request) {
   return cookieName + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + cookieSecure(request);
 }
-function readToken(request: Request) {
-  return request.headers.get('cookie')?.match(/(?:^|;\s*)shikshak_auth=([a-f0-9-]{36})(?:;|$)/i)?.[1] ?? '';
+function readToken(request: Request, trustedBrowserToken?: string) {
+  return trustedBrowserToken ?? request.headers.get('cookie')?.match(/(?:^|;\s*)shikshak_auth=([a-f0-9-]{36})(?:;|$)/i)?.[1] ?? '';
 }
-function sessionUser(request: Request, state: DemoState): Account | null {
-  const token = readToken(request);
+function sessionUser(request: Request, state: DemoState, trustedBrowserToken?: string): Account | null {
+  const token = readToken(request, trustedBrowserToken);
   const session = state.sessions[token];
   if (!session || session.expiresAt < Date.now()) return null;
   const account = state.accounts[session.userId];
@@ -168,7 +170,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
 
   if (parts[2] === 'auth' && parts.length === 4) {
     if (parts[3] === 'me' && method === 'GET') {
-      const me = sessionUser(request, state);
+      const me = sessionUser(request, state, opts.browserSessionToken);
       return me ? json(safeAccount(me)) : fail('Sign in to continue.', 401);
     }
     if (parts[3] === 'signup' && method === 'POST') {
@@ -205,7 +207,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       return json(safeAccount(account), 200, { 'Set-Cookie': newSession(request, state, account.id) });
     }
     if (parts[3] === 'logout' && method === 'POST') {
-      delete state.sessions[readToken(request)];
+      delete state.sessions[readToken(request, opts.browserSessionToken)];
       return json({ ok: true }, 200, { 'Set-Cookie': expiredCookie(request) });
     }
   }
@@ -230,7 +232,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     return json(safeAccount(account), 201, { 'Set-Cookie': newSession(request, state, account.id) });
   }
 
-  const me = sessionUser(request, state);
+  const me = sessionUser(request, state, opts.browserSessionToken);
   if (!me) return fail('Sign in to continue.', 401);
 
   if (parts[2] === 'admin') {
