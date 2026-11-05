@@ -30,7 +30,7 @@ export function Auth({ catalog, onSuccess, admin = false }: {
     if (!window.confirm('Reset all Shikshak demo accounts, matches, messages and classwork stored in this browser? This cannot be undone.')) return;
     try {
       const { resetBrowserDemo } = await import('../services/browserDemo');
-      resetBrowserDemo();
+      await resetBrowserDemo();
       window.location.reload();
     } catch (cause) {
       setError((cause as Error).message);
