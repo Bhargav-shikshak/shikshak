@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, CalendarDays, Compass, FilePenLine, FlaskConical, HeartHandshake, House, LogOut, ShieldCheck, UserRound, X } from 'lucide-react';
+import { BookOpen, CalendarDays, Compass, FilePenLine, FlaskConical, House, LogOut, ShieldCheck, UserRound, X } from 'lucide-react';
 import type { Catalog, Listing, PublicAccount, Role } from '../shared/domain';
 import { api, isBrowserDemo } from './api';
 import { useResource } from './useResource';
@@ -13,16 +13,16 @@ import { ClassroomsIndex } from './components/ClassroomsIndex';
 import { Dashboard } from './components/Dashboard';
 import { Explore } from './components/Explore';
 import { ListingEditor } from './components/ListingEditor';
-import { Matches } from './components/Matches';
+import { Bookings } from './components/Bookings';
 import { Profile } from './components/Profile';
 import './workspace.css';
 import './portal.css';
 
-type View = 'home' | 'explore' | 'matches' | 'classrooms' | 'classroom' | 'listing' | 'profile';
+type View = 'home' | 'explore' | 'bookings' | 'classrooms' | 'classroom' | 'listing' | 'profile';
 const views = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'explore', label: 'Explore', icon: Compass },
-  { id: 'matches', label: 'Matches', icon: HeartHandshake },
+  { id: 'bookings', label: 'Bookings', icon: BookOpen },
   { id: 'classrooms', label: 'Classes', icon: CalendarDays },
   { id: 'listing', label: 'My listing', icon: FilePenLine },
   { id: 'profile', label: 'Profile', icon: UserRound },
@@ -71,12 +71,12 @@ function App() {
   const role: Role | null = session?.role === 'student' || session?.role === 'teacher' ? session.role : null;
   const selected = routeParts[1];
   const view: View =
-    selected === 'home' || selected === 'matches' || selected === 'classrooms' ||
+    selected === 'home' || selected === 'bookings' || selected === 'classrooms' ||
     selected === 'classroom' || selected === 'listing' || selected === 'profile'
-      ? selected : 'explore';
+      ? selected : (selected === 'explore' ? 'explore' : 'home');
   const partnerId = routeParts[2] ? decodeURIComponent(routeParts[2]) : '';
   const go = (next: View, id?: string) => { if (role) window.location.hash = link(role, next, id); };
-  const openChat = (id: string) => { setChatId(id); go('matches'); };
+  const openChat = (id: string) => { setChatId(id); go('bookings'); };
   const openClassroom = (id: string) => { setChatId(null); go('classroom', id); };
   const notify = (value: string) => setToast(value);
 
@@ -95,13 +95,13 @@ function App() {
   }, [toast]);
   useEffect(() => {
     if (!session) return;
-    document.title = (session.role === 'admin' ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Matches') + ' · Shikshak';
+    document.title = (session.role === 'admin' ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
   }, [session, view]);
 
   function loggedIn(account: PublicAccount) {
     setSession(account);
     setChatId(null);
-    window.location.hash = account.role === 'admin' ? '#admin' : link(account.role, 'explore');
+    window.location.hash = account.role === 'admin' ? '#admin' : link(account.role, account.role === 'teacher' ? 'home' : 'explore');
   }
   async function logout(toAdmin = false) {
     if (signingOut) return;
@@ -152,9 +152,12 @@ function App() {
   return <>
     <a className="skip-link" href="#main" onClick={event => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
     <header className="site-header"><div className="header-inner portal-header">
-      <a className="brand" href={link(role, 'explore')} aria-label="Shikshak home" onClick={() => setChatId(null)}><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
+      <a className="brand" href={link(role, 'home')} aria-label="Shikshak home" onClick={() => setChatId(null)}><img src="/shikshak.svg" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
       <nav className="site-nav" aria-label="Main navigation">
-        {views.map(({ id, label, icon: Icon }) => <a key={id} href={link(role, id)} aria-current={view === id ? 'page' : undefined} onClick={() => setChatId(null)}><Icon size={16}/><span>{label}</span></a>)}
+        {views.filter(({ id }) => (role === 'student' || id !== 'explore') &&
+          (role === 'teacher' || id !== 'listing')).map(({ id, label, icon: Icon }) =>
+          <a key={id} href={link(role, id)} aria-current={view === id ? 'page' : undefined}
+            onClick={() => setChatId(null)}><Icon size={16}/><span>{label}</span></a>)}
       </nav>
       <div className="header-right">
         {(isBrowserDemo || catalog.demo) && <span className="demo-pill"><FlaskConical size={14}/>{isBrowserDemo ? 'Local demo' : 'Pilot'}</span>}
@@ -163,18 +166,26 @@ function App() {
       </div>
     </div></header>
     {isBrowserDemo && <div className="browser-demo-bar" role="note">
-      <span>Browser demo · switch users to test matches, chat and classes. Avoid real personal information.</span>
+      <span>Browser demo · test bookings, approval, chat and classes. Avoid real personal information.</span>
       <DemoAccountSwitcher catalog={catalog} current={session} onSwitch={loggedIn}/>
     </div>}
-    {view === 'home' && <Dashboard key={session.id} account={session} openExplore={() => go('explore')} openProfile={() => go('profile')} openClassroom={openClassroom}/>}
-    {view === 'explore' && <Explore key={session.id} catalog={catalog} role={role} onChat={openChat} notify={notify}/>}
-    {view === 'matches' && <Matches key={session.id} catalog={catalog} role={role} currentUserId={session.id} chatId={chatId} clearChat={() => setChatId(null)} openChat={openChat} openClassroom={openClassroom} explore={() => go('explore')} notify={notify}/>}
-    {view === 'classrooms' && <ClassroomsIndex key={session.id} account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>}
+    {(view === 'home' || (role === 'teacher' && view === 'explore')) &&
+      <Dashboard key={session.id} account={session}
+        openExplore={() => go(role === 'teacher' ? 'bookings' : 'explore')}
+        openProfile={() => go('profile')} openClassroom={openClassroom}/>}
+    {view === 'explore' && role === 'student' &&
+      <Explore key={session.id} catalog={catalog} role="student" onChat={openChat} notify={notify}/>}
+    {view === 'bookings' && <Bookings key={session.id} role={role} currentUserId={session.id}
+      chatId={chatId} clearChat={() => setChatId(null)} openChat={openChat}
+      openClassroom={openClassroom} explore={() => go('explore')} notify={notify}/>}
+    {view === 'classrooms' && <ClassroomsIndex key={session.id} account={session} openClassroom={openClassroom} openExplore={() => go(role === 'teacher' ? 'bookings' : 'explore')}/>}
     {view === 'classroom' && (partnerId ? <Classroom key={session.id + ':' + partnerId} role={role} partnerId={partnerId} back={() => go('classrooms')} message={openChat}/> : <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>)}
-    {view === 'listing' && <OwnListing key={session.id + ':' + session.localityId} catalog={catalog} role={role} account={session} onSaved={listing => notify(listing.published ? 'Your listing is visible in discovery.' : 'Your listing was saved privately.')}/>}
+    {view === 'listing' && role === 'teacher' &&
+      <OwnListing key={session.id + ':' + session.localityId} catalog={catalog} role={role} account={session}
+        onSaved={listing => notify(listing.published ? 'Your listing is visible to students.' : 'Your listing was saved privately.')}/>}
     {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')} openClassroom={openClassroom}/>}
     <footer className="portal-footer"><strong>Shikshak</strong> · Neighbourhood learning, made simpler. <a href="#admin">Admin access</a></footer>
-    {toast && <div className="toast" role="status"><HeartHandshake size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
+    {toast && <div className="toast" role="status"><BookOpen size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
   </>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);
