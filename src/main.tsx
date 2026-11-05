@@ -42,7 +42,7 @@ function OwnListing({ catalog, role, account, onSaved }: {
   const { data, error, refresh } = useResource(load);
   return <main id="main" className="workspace-page">
     <div className="workspace-heading"><p className="eyebrow hero-eyebrow"><span/> {role === 'teacher' ? 'TUTOR WORKSPACE' : 'LEARNER WORKSPACE'}</p>
-      <h1>My listing.</h1><p>{role === 'teacher' ? 'Tell nearby learners what you teach and when you’re available.' : 'Tell nearby tutors what help you need and when you’re available.'}</p></div>
+      <h1>My listing.</h1><p>{role === 'teacher' ? 'Tell nearby learners what you teach and when you’re available.' : 'Your learner profile stays private; tutors see only requests you send to them.'}</p></div>
     <div className="workspace-split">
       <section className="workspace-panel editor-panel">
         <h2>{role === 'teacher' ? 'Tutor listing' : 'Learner listing'}</h2>
@@ -51,7 +51,7 @@ function OwnListing({ catalog, role, account, onSaved }: {
         {data !== undefined && <ListingEditor initial={data} catalog={catalog} role={role} account={account} onSaved={onSaved}/>}
       </section>
       <aside className="workspace-aside"><span className="aside-icon"><ShieldCheck size={22}/></span><h2>What others can see</h2>
-        <p>Your listing is visible in nearby discovery only after publication. Map pins show neighbourhood centres, not your address.</p>
+        <p>Published tutor listings appear in student discovery. Student accounts and home locations are never browseable by teachers.</p>
         <p>Change your name, qualifications or learning strengths in <a href={link(role, 'profile')}>Profile</a>. You can hide your listing at any time.</p>
         <p className="aside-note">Your account is a {role === 'teacher' ? 'teacher' : 'student'} account and cannot switch roles.</p>
       </aside>
@@ -182,7 +182,7 @@ function App() {
     {view === 'classroom' && (partnerId ? <Classroom key={session.id + ':' + partnerId} role={role} partnerId={partnerId} back={() => go('classrooms')} message={openChat}/> : <ClassroomsIndex account={session} openClassroom={openClassroom} openExplore={() => go('explore')}/>)}
     {view === 'listing' && role === 'teacher' &&
       <OwnListing key={session.id + ':' + session.localityId} catalog={catalog} role={role} account={session}
-        onSaved={listing => notify(listing.published ? 'Your listing is visible to students.' : 'Your listing was saved privately.')}/>}
+        onSaved={listing => notify(listing.published ? 'Your tutor listing is visible to students.' : 'Your listing was saved privately.')}/>}
     {view === 'profile' && <Profile key={session.id} account={session} catalog={catalog} onUpdated={setSession} openListing={() => go('listing')} openClassroom={openClassroom}/>}
     <footer className="portal-footer"><strong>Shikshak</strong> · Neighbourhood learning, made simpler. <a href="#admin">Admin access</a></footer>
     {toast && <div className="toast" role="status"><BookOpen size={20}/><span>{toast}</span><button type="button" className="icon-button" aria-label="Dismiss notification" onClick={() => setToast(null)}><X size={17}/></button></div>}
