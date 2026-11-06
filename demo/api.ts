@@ -220,7 +220,7 @@ function enrich(state: DemoState, listing: Listing): Listing {
     teacherVerified: account.role === 'teacher' ? account.teacherVerified !== false : false,
   } : listing;
 }
-function listingFrom(input: unknown, role: Role, user: Account, state: DemoState): Listing | null {
+function listingFrom(input: unknown, role: Role, user: Account): Listing | null {
   if (!input || typeof input !== 'object') return null;
   const data = input as Partial<ListingDraft>;
   const headline = cleanText(data.headline, 90);
@@ -460,7 +460,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
   if (parts.length === 5 && resource === 'listing') {
     if (method === 'GET') return json(state.own[myId] ? enrich(state, state.own[myId]) : null);
     if (method === 'PUT') {
-      const listing = listingFrom(await request.json().catch(() => null), role, me, state);
+      const listing = listingFrom(await request.json().catch(() => null), role, me);
       if (!listing) return fail('Complete your title, subjects, class levels, availability and description.');
       state.own[myId] = listing;
       return json(enrich(state, listing));
