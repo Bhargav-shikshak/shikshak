@@ -101,7 +101,7 @@
 @media (max-width: 760px) {
   .header-inner { height: auto; grid-template-columns: 1fr auto; grid-template-rows: 53px 40px; padding: 0 15px 5px; column-gap: 5px; row-gap: 0; }
   .brand { grid-row: 1; grid-column: 1; font-size: 22px; gap: 7px; }
-  .brand img { width: 34px; height: 34px; }
+  .brand img { width: 48px; height: 48px; }
   .site-nav { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
   .site-nav a { padding: 0 5px; font-size: 12px; min-height: 35px; }
   .header-right { grid-column: 2; grid-row: 1; }

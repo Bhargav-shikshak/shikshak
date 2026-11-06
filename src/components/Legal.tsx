@@ -21,7 +21,7 @@ export function LegalPage({ kind, backHref }: { kind: LegalKind; backHref: strin
     <header className="site-header">
       <div className="header-inner legal-header">
         <a className="brand" href={backHref} aria-label="Shikshak home">
-          <img src="/shikshak-logo.png" width="40" height="40" alt=""/>
+          <img src="/shikshak-logo.png" width="60" height="60" alt=""/>
           <span>Shik<span>shak</span><b>.</b></span>
         </a>
         <a className="legal-back" href={backHref}><ArrowLeft size={16}/> Back to Shikshak</a>

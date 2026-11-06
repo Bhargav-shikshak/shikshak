@@ -134,7 +134,7 @@ function App() {
 
   if ((session.role === 'admin' || session.role === 'owner')) return <>
     <header className="site-header"><div className="header-inner portal-header">
-      <a className="brand" href="#admin" aria-label="Shikshak admin"><img src="/shikshak-logo.png" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
+      <a className="brand" href="#admin" aria-label="Shikshak admin"><img src="/shikshak-logo.png" width="60" height="60" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
       <span className="admin-header-label"><ShieldCheck size={17}/> Admin access</span>
       <button type="button" className="secondary-button" disabled={signingOut} onClick={() => void logout()}><LogOut size={16}/> Log out</button>
     </div></header>
@@ -150,7 +150,7 @@ function App() {
   // Student and teacher sessions cannot enter the admin console.
   // Explicit sign-out is required before using a separate administrator identity.
   if (isAdminRoute) return <main id="main" className="workspace-page admin-access-gate">
-    <a className="brand" href={link(session.role, 'home')} aria-label="Return to Shikshak"><img src="/shikshak-logo.png" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
+    <a className="brand" href={link(session.role, 'home')} aria-label="Return to Shikshak"><img src="/shikshak-logo.png" width="60" height="60" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
     <div className="workspace-panel">
       <p className="eyebrow">RESTRICTED ACCESS</p><h1>Admin sign in.</h1>
       <p>You are signed in as a {session.role}. Admin accounts use separate credentials and cannot share student or teacher sessions.</p>
@@ -163,7 +163,7 @@ function App() {
   return <>
     <a className="skip-link" href="#main" onClick={event => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
     <header className="site-header"><div className="header-inner portal-header">
-      <a className="brand" href={link(role, 'home')} aria-label="Shikshak home" onClick={() => setChatId(null)}><img src="/shikshak-logo.png" width="40" height="40" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
+      <a className="brand" href={link(role, 'home')} aria-label="Shikshak home" onClick={() => setChatId(null)}><img src="/shikshak-logo.png" width="60" height="60" alt=""/><span>Shik<span>shak</span><b>.</b></span></a>
       <nav className="site-nav" aria-label="Main navigation">
         {views.filter(({ id }) => (role === 'student' || id !== 'explore') &&
           (role === 'teacher' || id !== 'listing')).map(({ id, label, icon: Icon }) =>
