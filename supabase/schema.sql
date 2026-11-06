@@ -56,7 +56,7 @@ create table shikshak_private.files (
 create index files_room on shikshak_private.files(room_id);
 create index files_owner on shikshak_private.files(owner_id);
 create table shikshak_private.settings (id boolean primary key default true check(id), data jsonb not null);
-insert into shikshak_private.settings values(true,'{"baseRate":400,"freeRadiusKm":2,"distanceStepKm":2,"stepFee":50,"maxTravelFee":300}');
+insert into shikshak_private.settings values(true,'{"freeRadiusKm":2,"distanceStepKm":2,"stepFee":50,"maxTravelFee":300}');
 do $$ declare t text; begin
  foreach t in array array['profiles','listings','bookings','rooms','items','messages','saves','files','settings'] loop
  execute format('alter table shikshak_private.%I enable row level security',t);
@@ -87,7 +87,7 @@ declare m jsonb=new.raw_user_meta_data; a jsonb; r text=m->>'role'; begin
  insert into shikshak_private.profiles(id,role,data) values(new.id,r,jsonb_build_object(
  'id',new.id,'email',new.email,'name',coalesce(nullif(shikshak_private.txt(m,'name',60),''),'New member'),
  'role',r,'localityId','ganeshguri','homeArea',a,'homeChangedAt',now(),'bio','','strongSubjects','[]'::jsonb,
- 'weakSubjects','[]'::jsonb,'qualifications','','experience','','requestedRate',null,'approvedRate',null,'rateStatus','none','active',true,'createdAt',now()));
+ 'weakSubjects','[]'::jsonb,'qualifications','','experience','','active',true,'createdAt',now()));
  return new;
 end $$;
 create trigger shikshak_create_profile after insert on auth.users for each row execute function shikshak_private.new_user();
@@ -99,9 +99,9 @@ language sql stable set search_path='' as $$
  select l.data||jsonb_build_object('id',p.id,'role',p.role,'name',p.data->>'name','localityId',p.data->>'localityId',
  'locality',(p.data#>>'{homeArea,locality}')||', '||(p.data#>>'{homeArea,city}'),
  'location',jsonb_build_object('lat',p.data#>'{homeArea,lat}','lng',p.data#>'{homeArea,lng}'),
- 'rate',case when p.role='teacher' then coalesce((p.data->>'approvedRate')::numeric,(s.data->>'baseRate')::numeric) else (l.data->>'rate')::numeric end,
+ 'rate',(l.data->>'rate')::numeric,
  'published',l.published,'qualifications',p.data->>'qualifications','experience',p.data->>'experience')
- from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id cross join shikshak_private.settings s where p.id=uid and p.active
+ from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id where p.id=uid and p.active
 $$;
 create function shikshak_private.distance(a jsonb,b jsonb) returns double precision
 language sql immutable set search_path='' as $$
@@ -111,10 +111,10 @@ $$;
 create function shikshak_private.quote(teacher uuid, student_area jsonb) returns jsonb
 language sql stable set search_path='' as $$
  select jsonb_build_object('baseRate',base,'travelFee',fee,'rate',base+fee)
- from (select coalesce((p.data->>'approvedRate')::numeric,(s.data->>'baseRate')::numeric) base,
+ from (select (l.data->>'rate')::numeric base,
  least((s.data->>'maxTravelFee')::numeric,
  ceil(greatest(0,shikshak_private.distance(p.data->'homeArea',student_area)-(s.data->>'freeRadiusKm')::numeric)/(s.data->>'distanceStepKm')::numeric)*(s.data->>'stepFee')::numeric) fee
- from shikshak_private.profiles p cross join shikshak_private.settings s where p.id=teacher) q
+ from shikshak_private.profiles p join shikshak_private.listings l on l.user_id=p.id cross join shikshak_private.settings s where p.id=teacher) q
 $$;
 create function shikshak_private.booking(b shikshak_private.bookings) returns jsonb
 language sql stable set search_path='' as $$
@@ -188,27 +188,20 @@ begin
   update shikshak_private.profiles set data=me.data where id=uid;
   return shikshak_private.profile(me);
  end if;
- if p=array['profile','request-rate'] and method='POST' then
-  n=(input->>'rate')::numeric;
-  if me.role<>'teacher' then perform shikshak_private.fail('Only teachers can request rate changes.',403); end if;
-  if n is null or n<>trunc(n) or n<100 or n>10000 then perform shikshak_private.fail('Choose a rate from ₹100 to ₹10,000.'); end if;
-  me.data=me.data||jsonb_build_object('requestedRate',n,'rateStatus','pending');
-  update shikshak_private.profiles set data=me.data where id=uid;
-  return shikshak_private.profile(me);
- end if;
+
  if p[1]='admin' then
   if me.role<>'admin' then perform shikshak_private.fail('Administrator access required.',403); end if;
   if array_length(p,1)=1 and method='GET' then
    return jsonb_build_object('accounts',(select coalesce(jsonb_agg(shikshak_private.profile(x)),'[]'::jsonb) from (select * from shikshak_private.profiles order by created_at desc limit 500) x),
    'settings',settings,'publishedListings',(select count(*) from shikshak_private.listings where published),
-   'matchedPairs',(select count(*) from shikshak_private.rooms),'pendingRates',(select count(*) from shikshak_private.profiles where data->>'rateStatus'='pending'));
+   'matchedPairs',(select count(*) from shikshak_private.rooms));
   end if;
   if p=array['admin','pricing'] and method='PUT' then
-   if not (input ?& array['baseRate','freeRadiusKm','distanceStepKm','stepFee','maxTravelFee']) then perform shikshak_private.fail('Complete all pricing fields.'); end if;
-   if (input->>'baseRate')::numeric not between 100 and 10000 or (input->>'freeRadiusKm')::numeric not between 0 and 100 or
+   if not (input ?& array['freeRadiusKm','distanceStepKm','stepFee','maxTravelFee']) then perform shikshak_private.fail('Complete all pricing fields.'); end if;
+   if (input->>'freeRadiusKm')::numeric not between 0 and 100 or
    (input->>'distanceStepKm')::numeric not between 0.1 and 100 or (input->>'stepFee')::numeric not between 0 and 5000 or
    (input->>'maxTravelFee')::numeric not between 0 and 10000 then perform shikshak_private.fail('Invalid pricing settings.'); end if;
-   j=jsonb_build_object('baseRate',(input->>'baseRate')::numeric,'freeRadiusKm',(input->>'freeRadiusKm')::numeric,
+   j=jsonb_build_object('freeRadiusKm',(input->>'freeRadiusKm')::numeric,
    'distanceStepKm',(input->>'distanceStepKm')::numeric,'stepFee',(input->>'stepFee')::numeric,'maxTravelFee',(input->>'maxTravelFee')::numeric);
    update shikshak_private.settings set data=j where id; return j;
   end if;
@@ -219,10 +212,6 @@ begin
     update shikshak_private.profiles set active=(input->>'action'='activate') where id=target.id returning * into target;
    elsif p[4]='listing' and input->>'action'='hide' then
     update shikshak_private.listings set published=false where user_id=target.id;
-   elsif p[4]='rate' and target.role='teacher' and input->>'action' in ('approve','reject') and target.data->>'rateStatus'='pending' then
-    target.data=target.data||jsonb_build_object('rateStatus',case when input->>'action'='approve' then 'approved' else 'rejected' end,
-    'approvedRate',case when input->>'action'='approve' then target.data->'requestedRate' else target.data->'approvedRate' end);
-    update shikshak_private.profiles set data=target.data where id=target.id;
    else perform shikshak_private.fail('Unsupported admin action.'); end if;
    return shikshak_private.profile(target);
   end if;
@@ -236,8 +225,8 @@ begin
    if shikshak_private.txt(input,'headline',90)='' or shikshak_private.txt(input,'availability',100)='' or shikshak_private.txt(input,'description',700)='' or
    jsonb_typeof(input->'subjects') is distinct from 'array' or jsonb_typeof(input->'grades') is distinct from 'array' then perform shikshak_private.fail('Complete your listing title, subjects, class levels and description.'); end if;
    if jsonb_array_length(input->'subjects') not between 1 and 20 or jsonb_array_length(input->'grades') not between 1 and 20 then perform shikshak_private.fail('Choose subjects and class levels.'); end if;
-   n=case when me.role='student' then (input->>'rate')::numeric else (settings->>'baseRate')::numeric end;
-   if n is null or n<50 or n>10000 then perform shikshak_private.fail('Choose a valid budget.'); end if;
+   n=(input->>'rate')::numeric;
+   if n is null or n<>trunc(n) or n<(case when me.role='teacher' then 100 else 50 end) or n>10000 then perform shikshak_private.fail('Choose a valid hourly price or budget.'); end if;
    j=jsonb_build_object('headline',shikshak_private.txt(input,'headline',90),'availability',shikshak_private.txt(input,'availability',100),
     'description',shikshak_private.txt(input,'description',700),'subjects',input->'subjects','grades',input->'grades','rate',n,'avatar',0,'color',case when me.role='teacher' then 'peach' else 'sage' end);
    insert into shikshak_private.listings values(uid,j,coalesce((input->>'published')::boolean,false))
