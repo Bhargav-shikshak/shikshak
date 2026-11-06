@@ -21,7 +21,7 @@ update shikshak_private.profiles
 -- Older accounts remain unverified until an administrator reviews them.
 
 create or replace function shikshak_private.new_user() returns trigger
-language plpgsql security definer set search_path='' as $
+language plpgsql security definer set search_path='' as $$
 declare m jsonb=new.raw_user_meta_data; a jsonb; r text=m->>'role'; begin
  if r not in ('student','teacher') or r is null then r='student'; end if;
  a=case when m->'homeArea' is not null then shikshak_private.area(m->'homeArea')
@@ -31,7 +31,7 @@ declare m jsonb=new.raw_user_meta_data; a jsonb; r text=m->>'role'; begin
  'role',r,'localityId','ganeshguri','homeArea',a,'homeChangedAt',now(),'bio','','strongSubjects','[]'::jsonb,
  'weakSubjects','[]'::jsonb,'qualifications','','experience','','active',true,'createdAt',now()));
  return new;
-end $;
+end $$;
 create or replace function shikshak_private.profile(p shikshak_private.profiles) returns jsonb
 language sql stable set search_path='' as $$ select p.data||jsonb_build_object('id',p.id,'role',p.role,'active',p.active,'teacherVerified',case when p.role='teacher' then p.teacher_verified else false end) $$;
 
