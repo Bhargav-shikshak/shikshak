@@ -167,7 +167,7 @@ async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
       localityId: listing.localityId,
       subjects: listing.subjects,
       grades: listing.grades,
-      rate: listing.role === 'student' ? listing.rate : state.pricing.baseRate,
+      rate: listing.rate,
       availability: listing.availability,
       description: listing.description,
       published: true,
@@ -282,7 +282,7 @@ async function prepareDemoBookings(state: DemoState): Promise<boolean> {
           'Could you help me prepare for the next test?',
           'Looking for practical help with algebra.',
           'Requesting a weekend maths session.'][made],
-        quotedRate: state.pricing.baseRate, status,
+        quotedRate: state.own[teacher.id]?.rate ?? 500, status,
         createdAt: new Date(Date.now() - (made + 1) * 86400000).toISOString(),
         respondedAt: status === 'rejected' ? new Date().toISOString() : null,
       };
@@ -332,9 +332,6 @@ async function seedBrowserDemo(): Promise<DemoState> {
   const student = members[0];
   const teacher = members[1];
   const otherTeacher = members[2];
-
-  // One sample tutor has a pending custom base rate for testing approvals.
-  await checked(state, '/profile/request-rate', 'POST', { rate: 675 }, otherTeacher.token);
 
   // Seed an accepted first-class request; subsequent activities share the classroom.
   const initialBooking = await checked(state, '/workspaces/student/bookings', 'POST', {
@@ -579,7 +576,7 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
       localityId: locality.id,
       subjects: [input.subject],
       grades: [input.grade],
-      rate: input.role === 'teacher' ? state.pricing.baseRate : 600,
+      rate: input.role === 'teacher' ? 500 : 600,
       availability: 'Flexible hours',
       description: input.role === 'teacher'
         ? 'Available for practice lessons, notes, assignments and demo coordination.'
