@@ -338,21 +338,6 @@ export function addHistoricalActivity(state: DemoState, now = Date.now()) {
     }
   }
 
-  // Pricing review queue has a mix of outcomes. Existing human demo edits,
-  // including the default Meghna request, are left unchanged.
-  for (const [index, account] of teachers.entries()) {
-    if (account.rateStatus !== 'none' || index % 5 >= 3) continue;
-    const rate = 450 + (index % 5) * 75;
-    account.requestedRate = rate;
-    if (index % 5 === 0) { account.rateStatus = 'pending'; }
-    else if (index % 5 === 1) {
-      account.rateStatus = 'approved';
-      account.approvedRate = rate;
-      if (state.own[account.id]) state.own[account.id].rate = rate;
-    } else if (index % 5 === 2) {
-      account.rateStatus = 'rejected';
-    }
-  }
 
   return {
     newPairs: pairs.length, pendingInterest: unreciprocated,
