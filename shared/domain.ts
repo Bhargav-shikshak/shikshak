@@ -24,9 +24,6 @@ export interface PublicAccount {
   weakSubjects: string[];
   qualifications: string;
   experience: string;
-  requestedRate: number | null;
-  approvedRate: number | null;
-  rateStatus: 'none' | 'pending' | 'approved' | 'rejected';
   active: boolean;
   teacherVerified?: boolean;
   createdAt: string;
@@ -104,7 +101,6 @@ export interface BookingRequest {
 export interface Connection { listing: Listing; status: ConnectionStatus }
 export interface Message { id: string; authorId: string; body: string; sentAt: string }
 export interface PriceSettings {
-  baseRate: number;
   freeRadiusKm: number;
   distanceStepKm: number;
   stepFee: number;
@@ -163,7 +159,6 @@ export interface AdminSnapshot {
   settings: PriceSettings;
   publishedListings: number;
   matchedPairs: number;
-  pendingRates: number; // legacy demo
   pendingVerifications?: number;
   viewerRole?: 'owner' | 'admin';
 }
