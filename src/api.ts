@@ -76,7 +76,6 @@ export const api = {
   bootstrapAdmin: (data: Omit<Registration, 'role'> & { setupToken: string }) =>
     request<PublicAccount>('/admin/bootstrap', { method: 'POST', body: data }),
   profile: (data: ProfileInput) => request<PublicAccount>('/profile', { method: 'PUT', body: data }),
-  requestRate: (rate: number) => request<PublicAccount>('/profile/request-rate', { method: 'POST', body: { rate } }),
 
   discover: (role: Role, filters: Filters, signal?: AbortSignal) => {
     const params = new URLSearchParams();
