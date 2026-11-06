@@ -76,7 +76,6 @@ export const api = {
   bootstrapAdmin: (data: Omit<Registration, 'role'> & { setupToken: string }) =>
     request<PublicAccount>('/admin/bootstrap', { method: 'POST', body: data }),
   profile: (data: ProfileInput) => request<PublicAccount>('/profile', { method: 'PUT', body: data }),
-  requestRate: (rate: number) => request<PublicAccount>('/profile/request-rate', { method: 'POST', body: { rate } }),
 
   discover: (role: Role, filters: Filters, signal?: AbortSignal) => {
     const params = new URLSearchParams();
@@ -227,10 +226,15 @@ export const api = {
   reviewHomework: (role: Role, partnerId: string, id: string, review: string) =>
     request<Homework>(roomPath(role, partnerId) + '/homework/' + encodeURIComponent(id) + '/review', { method: 'PUT', body: { review } }),
 
+  ownerMfaStatus: () => request<{ aal: 'aal1' | 'aal2'; factors: { id: string; status: string; type: string }[] }>('/auth/mfa/status'),
+  ownerMfaEnroll: () => request<{ factorId: string; secret: string; qrCode?: string }>('/auth/mfa/enroll', { method: 'POST', body: {} }),
+  ownerMfaVerify: (factorId: string, code: string) => request<{ ok: true }>('/auth/mfa/verify', { method: 'POST', body: { factorId, code } }),
   admin: (signal?: AbortSignal) => request<AdminSnapshot>('/admin', { signal }),
   setPricing: (data: PriceSettings) => request<PriceSettings>('/admin/pricing', { method: 'PUT', body: data }),
-  adminAction: (userId: string, action: 'approve' | 'reject' | 'suspend' | 'activate' | 'hide') => {
-    const suffix = action === 'approve' || action === 'reject' ? 'rate' : action === 'hide' ? 'listing' : 'status';
+  adminAction: (userId: string, action: 'verify' | 'unverify' | 'suspend' | 'activate' | 'hide') => {
+    const suffix = action === 'verify' || action === 'unverify' ? 'verification' : action === 'hide' ? 'listing' : 'status';
     return request<PublicAccount>('/admin/accounts/' + encodeURIComponent(userId) + '/' + suffix, { method: 'PUT', body: { action } });
   },
+  staffRole: (userId: string, action: 'make-admin' | 'make-owner' | 'revoke-staff') =>
+    request<PublicAccount>('/admin/accounts/' + encodeURIComponent(userId) + '/role', { method: 'PUT', body: { action } }),
 };

@@ -69,7 +69,7 @@ result = await call('workspaces/teacher/listing', {
   body: draft('Tutor One', 'Math tutoring', 'chandmari', 9999),
 });
 equal(result.status, 200, 'Tutor listing published');
-equal(result.data.rate, 400, 'Teacher cannot set own unapproved price through listing API');
+equal(result.data.rate, 9999, 'Teacher sets their own hourly price without platform base');
 
 result = await call('workspaces/student/listing', {
   method: 'PUT', cookie: student.cookie,
@@ -78,14 +78,8 @@ result = await call('workspaces/student/listing', {
 equal(result.status, 200, 'Student listing published');
 
 result = await call('workspaces/student/discovery', { cookie: student.cookie });
-equal(result.status, 200, 'Student can discover tutors');
-const foundTeacher = result.data.listings.find(x => x.id === teacher.data.id);
-ok(foundTeacher, 'Registered tutor appears in student discovery');
-ok(foundTeacher.rate >= 400, 'Student sees platform distance-based rate');
-equal(foundTeacher.baseRate, 400, 'Price quote uses platform base');
-equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
-ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persisted listings');
-equal(result.data.listings.length, 1, 'Server does not inject fictional previews into discovery');
+equal(result.status, 200, 'Student discovery is available');
+equal(result.data.listings.length, 0, 'An unverified teacher is hidden from discovery');
 result = await call('workspaces/student/listings/' + teacher.data.id + '/interest', {
   method: 'PUT', cookie: student.cookie,
 });
@@ -105,11 +99,12 @@ equal(result.data.weakSubjects[0], 'Mathematics', 'Weak subject is saved');
 result = await call('workspaces/teacher/discovery', { cookie: teacher.cookie });
 equal(result.status, 403, 'Editing a student profile never makes it browseable by teachers');
 
-result = await call('profile/request-rate', { method: 'POST', cookie: teacher.cookie, body: { rate: 850 } });
-equal(result.status, 200, 'Teacher submits price request');
-equal(result.data.rateStatus, 'pending');
-result = await call('workspaces/student/discovery', { cookie: student.cookie });
-equal(result.data.listings.find(x => x.id === teacher.data.id).baseRate, 400, 'Pending rate not applied without approval');
+result = await call('workspaces/teacher/listing', {
+  method: 'PUT', cookie: teacher.cookie,
+  body: draft('Tutor One', 'Math tutoring', 'chandmari', 850),
+});
+equal(result.status, 200, 'Teacher can change their own hourly price directly');
+equal(result.data.rate, 850, 'New teacher price is saved immediately');
 
 result = await call('admin/bootstrap', { method: 'POST',
   body: { name: 'Platform Admin', email: 'admin@example.test',
@@ -130,22 +125,28 @@ equal(result.status, 403, 'Students cannot access admin console');
 
 result = await call('admin', { cookie: admin.cookie });
 equal(result.status, 200, 'Admin console loads');
-equal(result.data.pendingRates, 1, 'Admin sees pending custom rates');
-result = await call('admin/accounts/' + teacher.data.id + '/rate', {
-  method: 'PUT', cookie: admin.cookie, body: { action: 'approve' } });
-equal(result.status, 200, 'Admin can approve teacher rate');
-equal(result.data.approvedRate, 850);
+equal(result.data.pendingVerifications, 1, 'Admin sees a teacher awaiting verification');
+result = await call('admin/accounts/' + teacher.data.id + '/verification', {
+  method: 'PUT', cookie: admin.cookie, body: { action: 'verify' } });
+equal(result.status, 200, 'Admin can verify a teacher');
+equal(result.data.teacherVerified, true, 'Admin verification is persisted');
 
 result = await call('workspaces/student/discovery', { cookie: student.cookie });
-equal(result.data.listings.find(x => x.id === teacher.data.id).baseRate, 850, 'Approved teacher base rate used in student quote');
+const foundTeacher = result.data.listings.find(x => x.id === teacher.data.id);
+ok(foundTeacher, 'Verified teacher is discoverable');
+ok(foundTeacher.teacherVerified, 'Verified teacher has a verified badge marker');
+equal(foundTeacher.baseRate, 850, 'Quote uses teacher-defined base rate');
+equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
+ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persisted listings');
+equal(result.data.listings.length, 1, 'Only the verified real teacher appears in discovery');
 
 result = await call('admin/pricing', { method: 'PUT', cookie: admin.cookie, body: {
-  baseRate: 500, freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
+  freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
 } });
-equal(result.status, 200, 'Admin can update platform pricing');
+equal(result.status, 200, 'Local demo admin can update travel pricing');
 result = await call('workspaces/student/discovery', { cookie: student.cookie });
 const newQuote = result.data.listings.find(x => x.id === teacher.data.id);
-equal(newQuote.baseRate, 850, 'Approved custom teacher base survives policy update');
+equal(newQuote.baseRate, 850, 'Teacher-set rate survives travel policy update');
 ok(newQuote.travelFee >= 75, 'Updated travel policy applies');
 
 const requested = await call('workspaces/student/bookings', { method: 'POST', cookie: student.cookie,
@@ -267,6 +268,9 @@ result = await call('workspaces/teacher/listing', {
 });
 equal(result.status, 200, 'Teacher listing is published at the selected pin');
 equal(result.data.location.lng, 94.21, 'Listing uses coarse map coordinates, not legacy locality ID');
+result = await call('admin/accounts/' + pinnedTeacher.data.id + '/verification', {
+  method: 'PUT', cookie: admin.cookie, body: { action: 'verify' } });
+equal(result.status, 200, 'Admin verifies the Jorhat teacher before discovery');
 result = await call('workspaces/student/discovery', { cookie: pinnedStudent.cookie });
 let jorhatQuote = result.data.listings.find(x => x.id === pinnedTeacher.data.id);
 ok(jorhatQuote, 'Jorhat teacher is discoverable beyond the initial city catalogue');

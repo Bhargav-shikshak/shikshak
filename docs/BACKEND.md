@@ -12,7 +12,7 @@ This branch connects the completed frontend to Supabase project `Shikshak_v1` (`
 - Student booking requests and teacher accept/reject. A unique active-pair constraint prevents duplicates. Acceptance and the first classroom session commit atomically.
 - Accepted-classroom chat, scheduling, notes, homework, PDF worksheets, PDF submissions and reviews.
 - Private PDF storage with a 10 MB per-file limit. The Worker checks the PDF signature. Storage policies restrict access to active classroom participants; the recipient can read only documents actually attached to classroom content.
-- Administrator pricing approval, publishing moderation and member suspension. Suspension is checked against the live database on every API call.
+- Teachers set and edit their own hourly base rates without review or approval. Distance-based travel adjustments follow platform rules, and teacher identity verification is a separate administrator action. Publishing moderation and suspension are checked on the server.
 
 ## Configuration and deployment
 
@@ -39,11 +39,13 @@ Use `npx wrangler dev` after building to exercise the real API locally. `npm run
 
 ## Database source and verification
 
-The SQL source is retained in execution order:
+The initial SQL source is retained in execution order:
 
 1. `supabase/schema.sql`
 2. `supabase/backend-security.sql`
 3. `supabase/health.sql`
+
+For the owner / verification / teacher-set-rate feature branch, apply `supabase/pricing-verification-owner-upgrade.sql` **only to staging** after the base schema, following `docs/OWNER_VERIFICATION_PRICING.md`.
 
 These were applied to the project through migration tooling. They are installation scripts, not scripts to rerun against an existing populated database.
 

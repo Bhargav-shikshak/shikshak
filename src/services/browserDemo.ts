@@ -13,7 +13,7 @@ import { demoApi, initialState } from '../../demo/api';
 import { catalog } from '../../demo/seed';
 import { seedListings } from '../../demo/fixtures';
 import { addHistoricalActivity, historyProfiles } from '../../demo/history';
-import type { HomeArea, PublicAccount, Role } from '../../shared/domain';
+import type { AccountRole, HomeArea, PublicAccount, Role } from '../../shared/domain';
 import { demoAccounts, DEMO_PASSWORD } from '../demoAccounts';
 
 const STATE_KEY = 'shikshak.browser-pilot.v1';
@@ -149,6 +149,8 @@ async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
     const account = state.accounts[created.id];
     delete state.accounts[created.id];
     account.id = listing.id;
+    // Fictional fixture tutors are pre-reviewed for local demo activities only.
+    if (listing.role === 'teacher') account.teacherVerified = true;
     state.accounts[listing.id] = account;
     const token = sessionFor(state, created);
     state.sessions[token].userId = listing.id;
@@ -165,7 +167,7 @@ async function ensureDemoFixtureAccounts(state: DemoState): Promise<boolean> {
       localityId: listing.localityId,
       subjects: listing.subjects,
       grades: listing.grades,
-      rate: listing.role === 'student' ? listing.rate : state.pricing.baseRate,
+      rate: listing.rate,
       availability: listing.availability,
       description: listing.description,
       published: true,
@@ -205,6 +207,7 @@ async function ensureDemoHistory(state: DemoState): Promise<boolean> {
     const account = state.accounts[created.id];
     delete state.accounts[created.id];
     account.id = sample.id;
+    if (sample.role === 'teacher') account.teacherVerified = true;
     // Account age varies from early summer through autumn.
     account.createdAt = new Date(Date.now() - (45 + (index * 17) % 110) * 86400000).toISOString();
     state.accounts[sample.id] = account;
@@ -279,7 +282,7 @@ async function prepareDemoBookings(state: DemoState): Promise<boolean> {
           'Could you help me prepare for the next test?',
           'Looking for practical help with algebra.',
           'Requesting a weekend maths session.'][made],
-        quotedRate: state.pricing.baseRate, status,
+        quotedRate: state.own[teacher.id]?.rate ?? 500, status,
         createdAt: new Date(Date.now() - (made + 1) * 86400000).toISOString(),
         respondedAt: status === 'rejected' ? new Date().toISOString() : null,
       };
@@ -300,6 +303,7 @@ async function seedBrowserDemo(): Promise<DemoState> {
       name: sample.name, email: sample.email, password: DEMO_PASSWORD,
       localityId: sample.localityId, role: sample.role,
     }) as PublicAccount;
+    if (sample.role === 'teacher') state.accounts[account.id].teacherVerified = true;
     const token = sessionFor(state, account);
     members.push({ account, token, role: sample.role });
 
@@ -327,10 +331,6 @@ async function seedBrowserDemo(): Promise<DemoState> {
 
   const student = members[0];
   const teacher = members[1];
-  const otherTeacher = members[2];
-
-  // One sample tutor has a pending custom base rate for testing approvals.
-  await checked(state, '/profile/request-rate', 'POST', { rate: 675 }, otherTeacher.token);
 
   // Seed an accepted first-class request; subsequent activities share the classroom.
   const initialBooking = await checked(state, '/workspaces/student/bookings', 'POST', {
@@ -472,7 +472,7 @@ export interface BrowserDemoAccount {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'teacher' | 'admin';
+  role: AccountRole;
   localityId: string;
   homeArea?: HomeArea;
   active: boolean;
@@ -503,7 +503,7 @@ export function listBrowserDemoAccounts(): Promise<BrowserDemoAccount[]> {
         published: state.own[account.id]?.published ?? false,
       }))
       .sort((a, b) => {
-        const order = { student: 0, teacher: 1, admin: 2 };
+        const order: Record<AccountRole, number> = { student: 0, teacher: 1, admin: 2, owner: 3 };
         return order[a.role] - order[b.role] || a.name.localeCompare(b.name);
       });
   });
@@ -555,6 +555,8 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
       name, email, role: input.role, localityId: locality.id, password: DEMO_PASSWORD,
       ...(input.homeArea ? { homeArea: input.homeArea } : {}),
     }) as PublicAccount;
+    // Quick-created fictional test tutors stay discoverable without a manual admin step.
+    if (input.role === 'teacher') state.accounts[account.id].teacherVerified = true;
     const token = sessionFor(state, account);
     await checked(state, '/profile', 'PUT', {
       name,
@@ -573,7 +575,7 @@ export function createBrowserDemoAccount(input: QuickDemoAccountInput): Promise<
       localityId: locality.id,
       subjects: [input.subject],
       grades: [input.grade],
-      rate: input.role === 'teacher' ? state.pricing.baseRate : 600,
+      rate: input.role === 'teacher' ? 500 : 600,
       availability: 'Flexible hours',
       description: input.role === 'teacher'
         ? 'Available for practice lessons, notes, assignments and demo coordination.'

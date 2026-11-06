@@ -1,92 +1,148 @@
 import { useCallback, useState, type FormEvent } from 'react';
-import { BarChart3, Check, CircleDollarSign, ShieldAlert, ShieldCheck, Users, X } from 'lucide-react';
-import type { AdminSnapshot, PriceSettings, PublicAccount } from '../../shared/domain';
+import { BadgeCheck, BarChart3, CircleDollarSign, ShieldCheck, ShieldAlert, Users } from 'lucide-react';
+import type { PriceSettings, PublicAccount } from '../../shared/domain';
 import { api } from '../api';
 import { useResource } from '../useResource';
-import { ErrorNotice, money } from './Common';
+import { ErrorNotice } from './Common';
+import { isBrowserDemo } from '../api';
+import { OwnerSecurity } from './OwnerSecurity';
+
+type MemberAction = 'verify' | 'unverify' | 'suspend' | 'activate' | 'hide';
+type StaffAction = 'make-admin' | 'make-owner' | 'revoke-staff';
 
 export function Admin() {
   const { data, error, refresh } = useResource(useCallback((signal: AbortSignal) => api.admin(signal), []));
   const [pricing, setPricing] = useState<PriceSettings | null>(null);
+  const [filter, setFilter] = useState<'all' | 'review' | 'teacher' | 'student' | 'staff'>('all');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [failure, setFailure] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'teacher' | 'student'>('all');
+  const isOwner = data?.viewerRole === 'owner';
   const values = pricing ?? data?.settings ?? null;
   const members = data?.accounts.filter(member =>
-    member.role !== 'admin' &&
-    (filter === 'all' || (filter === 'pending' ? member.rateStatus === 'pending' : member.role === filter))) ?? [];
+    filter === 'all' ||
+    (filter === 'review' && member.role === 'teacher' && !member.teacherVerified) ||
+    (filter === 'staff' && (member.role === 'owner' || member.role === 'admin')) ||
+    member.role === filter
+  ) ?? [];
 
-  async function changePricing(event: FormEvent<HTMLFormElement>) {
+  async function run(member: PublicAccount, action: MemberAction | StaffAction) {
+    if (busy) return;
+    const staff = action === 'make-owner' || action === 'make-admin' || action === 'revoke-staff';
+    if (staff && !window.confirm(
+      'Change platform access for ' + member.name + '? This changes their server-enforced permissions.'
+    )) return;
+    if ((action === 'verify' || action === 'unverify') && !window.confirm(
+      (action === 'verify' ? 'Confirm you reviewed the teacher details and verify ' : 'Revoke verification for ') + member.name + '?'
+    )) return;
+    setBusy(member.id + ':' + action); setNotice(''); setFailure('');
+    try {
+      if (staff) await api.staffRole(member.id, action as StaffAction);
+      else await api.adminAction(member.id, action as MemberAction);
+      setNotice(member.name + ': ' + action.replaceAll('-', ' ') + ' completed.');
+      refresh();
+    } catch (cause) {
+      setFailure((cause as Error).message);
+    } finally { setBusy(''); }
+  }
+
+  async function updateTravel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!values || busy) return;
-    setBusy('settings'); setFailure(''); setNotice('');
-    try { await api.setPricing(values); setPricing(null); setNotice('Platform pricing updated. Student quotes now use the new rules.'); refresh(); }
-    catch (cause) { setFailure((cause as Error).message); }
-    finally { setBusy(''); }
-  }
-  async function action(member: PublicAccount, operation: 'approve' | 'reject' | 'suspend' | 'activate' | 'hide') {
-    const key = member.id + ':' + operation;
-    if (busy) return;
-    setBusy(key); setNotice(''); setFailure('');
+    setBusy('pricing'); setNotice(''); setFailure('');
     try {
-      await api.adminAction(member.id, operation);
-      setNotice(member.name + ': ' + (operation === 'approve' ? 'custom rate approved' : operation === 'reject' ? 'rate request declined' : operation === 'hide' ? 'listing hidden' : operation === 'activate' ? 'account reactivated' : 'account suspended') + '.');
+      await api.setPricing(values);
+      setPricing(null);
+      setNotice('Distance supplement rules updated; each teacher still sets their own base hourly price.');
       refresh();
     } catch (cause) { setFailure((cause as Error).message); }
     finally { setBusy(''); }
   }
+
   return <main id="main" className="workspace-page admin-page">
-    <div className="workspace-heading"><p className="eyebrow hero-eyebrow"><span/> RESTRICTED PLATFORM CONTROL</p><h1>Admin console.</h1><p>Manage members, tutor-rate approvals and platform pricing. All actions are checked on the server.</p></div>
+    <div className="workspace-heading">
+      <p className="eyebrow hero-eyebrow"><span/> {isOwner ? 'OWNER ACCESS' : 'PLATFORM OPERATIONS'}</p>
+      <h1>{isOwner ? 'Owner console.' : 'Admin console.'}</h1>
+      <p>Verify teachers and moderate listings. Owners additionally manage staff access and distance pricing.</p>
+    </div>
     {error && <ErrorNotice message={error} retry={refresh}/>}
     {failure && <ErrorNotice message={failure}/>}
     {notice && <p className="form-success" role="status">{notice}</p>}
     {!data && !error && <p role="status">Loading administration…</p>}
+    {isOwner && !isBrowserDemo && <OwnerSecurity/>}
     {data && <div className="admin-stats">
-      <div><Users size={19}/><strong>{data.accounts.filter(x => x.role !== 'admin').length}</strong><span>Members</span></div>
-      <div><ShieldCheck size={19}/><strong>{data.publishedListings}</strong><span>Published listings</span></div>
+      <div><Users size={19}/><strong>{data.accounts.filter(x => x.role === 'teacher' || x.role === 'student').length}</strong><span>Members</span></div>
+      <div><BadgeCheck size={19}/><strong>{data.accounts.filter(x => x.role === 'teacher' && x.teacherVerified).length}</strong><span>Verified teachers</span></div>
       <div><BarChart3 size={19}/><strong>{data.matchedPairs}</strong><span>Accepted bookings</span></div>
-      <div><ShieldAlert size={19}/><strong>{data.pendingRates}</strong><span>Rates to review</span></div>
+      <div><ShieldAlert size={19}/><strong>{data.pendingVerifications ?? 0}</strong><span>Teachers awaiting review</span></div>
     </div>}
     <div className="admin-columns">
       <section className="workspace-panel">
-        <div className="admin-section-title"><h2>Members and approvals</h2><span>{members.length} shown</span></div>
-        <div className="admin-filter" aria-label="Filter members">{(['all', 'pending', 'teacher', 'student'] as const).map(value =>
-          <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'pending' ? 'Price requests' : value === 'all' ? 'All' : value === 'teacher' ? 'Teachers' : 'Students'}</button>
-        )}</div>
+        <div className="admin-section-title"><h2>Accounts and verification</h2><span>{members.length} shown</span></div>
+        <div className="admin-filter" aria-label="Filter members">
+          {(['all', 'review', 'teacher', 'student', 'staff'] as const).map(value =>
+            <button key={value} type="button" aria-pressed={filter === value}
+              onClick={() => setFilter(value)}>
+              {value === 'review' ? 'Needs review' : value === 'all' ? 'All' : value === 'staff' ? 'Staff' : value === 'teacher' ? 'Teachers' : 'Students'}
+            </button>)}
+        </div>
         <div className="admin-people">
           {members.length === 0 && <p className="admin-empty">No members in this view.</p>}
           {members.map(member => <article key={member.id} className="admin-person">
-            <div className="admin-person-head"><div><strong>{member.name}</strong><small>{member.email}</small></div><span className={member.active ? 'admin-active' : 'admin-inactive'}>{member.active ? 'Active' : 'Suspended'}</span></div>
-            <p>{member.role === 'teacher' ? 'Teacher' : 'Student'} · {member.localityId} · Joined {new Date(member.createdAt).toLocaleDateString('en-IN')}</p>
-            {member.role === 'teacher' && <p>Approved base: {member.approvedRate === null ? 'Platform rate' : money(member.approvedRate)} · Request: {member.rateStatus}</p>}
-            {member.rateStatus === 'pending' && member.requestedRate !== null && <div className="admin-rate-request"><span>Requested: <strong>{money(member.requestedRate)} / hr</strong></span>
-              <button type="button" disabled={!!busy} onClick={() => void action(member, 'approve')}><Check size={14}/> Approve</button>
-              <button type="button" disabled={!!busy} onClick={() => void action(member, 'reject')}><X size={14}/> Decline</button>
-            </div>}
+            <div className="admin-person-head">
+              <div><strong>{member.name}</strong><small>{member.email}</small></div>
+              <span className={member.active ? 'admin-active' : 'admin-inactive'}>
+                {member.active ? 'Active' : 'Suspended'}
+              </span>
+            </div>
+            <p>{member.role.toUpperCase()} · Joined {new Date(member.createdAt).toLocaleDateString('en-IN')}</p>
+            {member.role === 'teacher' && <p>
+              {member.teacherVerified ? 'Verified teacher' : 'Verification pending'} · Public badge {member.teacherVerified ? 'enabled' : 'disabled'}
+            </p>}
+            {member.role === 'teacher' && <p><strong>Qualifications:</strong> {member.qualifications || 'Not supplied'} · <strong>Experience:</strong> {member.experience || 'Not supplied'}</p>}
+            {member.role === 'teacher' && member.bio && <p>{member.bio}</p>}
             <div className="admin-member-actions">
-              <button type="button" disabled={!!busy} onClick={() => void action(member, member.active ? 'suspend' : 'activate')}>{member.active ? 'Suspend account' : 'Reactivate account'}</button>
-              <button type="button" disabled={!!busy} onClick={() => void action(member, 'hide')}>Hide listing</button>
+              {member.role === 'teacher' && <button type="button" disabled={!!busy}
+                onClick={() => void run(member, member.teacherVerified ? 'unverify' : 'verify')}>
+                <BadgeCheck size={15}/>{member.teacherVerified ? 'Revoke verification' : 'Verify teacher'}
+              </button>}
+              {member.role !== 'owner' && member.role !== 'admin' && <>
+                <button type="button" disabled={!!busy} onClick={() => void run(member, member.active ? 'suspend' : 'activate')}>
+                  {member.active ? 'Suspend account' : 'Reactivate'}
+                </button>
+                <button type="button" disabled={!!busy} onClick={() => void run(member, 'hide')}>Hide listing</button>
+              </>}
+              {isOwner && <>
+                {member.role !== 'owner' && <button type="button" disabled={!!busy} onClick={() => void run(member, 'make-owner')}>Make owner</button>}
+                {member.role !== 'admin' && <button type="button" disabled={!!busy} onClick={() => void run(member, 'make-admin')}>Make admin</button>}
+                {(member.role === 'admin' || member.role === 'owner') && <button type="button" disabled={!!busy} onClick={() => void run(member, 'revoke-staff')}>Revoke staff access</button>}
+              </>}
             </div>
           </article>)}
         </div>
       </section>
       <aside className="workspace-panel">
-        <div className="admin-section-title"><h2>Platform pricing</h2><CircleDollarSign size={21}/></div>
-        <p className="admin-intro">Student quotes combine an hourly base with capped travel fees, calculated from the student's saved home neighbourhood to the tutor's neighbourhood. A teacher's approved rate replaces the base only.</p>
-        {values && <form className="admin-pricing-form" onSubmit={changePricing}>
+        <div className="admin-section-title"><h2>Travel pricing policy</h2><CircleDollarSign size={21}/></div>
+        <p className="admin-intro">Teachers set their own hourly rate. Students see the teacher's rate plus a distance supplement, measured between approximate neighbourhood locations.</p>
+        {isOwner ? values && <form className="admin-pricing-form" onSubmit={updateTravel}>
           {([
-            ['baseRate', 'Platform base (₹/hour)'],
-            ['freeRadiusKm', 'Travel included within (km)'],
+            ['freeRadiusKm', 'Distance included (km)'],
             ['distanceStepKm', 'Additional distance step (km)'],
-            ['stepFee', 'Charge per extra step (₹)'],
-            ['maxTravelFee', 'Maximum travel supplement (₹)'],
+            ['stepFee', 'Fee per extra step (₹)'],
+            ['maxTravelFee', 'Maximum distance supplement (₹)'],
           ] as const).map(([key, label]) => <label key={key}>{label}
-            <input type="number" required min={key === 'baseRate' ? 100 : key === 'distanceStepKm' ? .1 : 0} max={key === 'baseRate' ? 10000 : key === 'stepFee' ? 2000 : key === 'maxTravelFee' ? 5000 : 30} step={key.includes('Km') ? .1 : 1} value={values[key]} onChange={event => setPricing(current => ({ ...(current ?? data!.settings), [key]: Number(event.target.value) }))}/>
+            <input type="number" required min={key === 'distanceStepKm' ? .1 : 0}
+              max={key === 'stepFee' ? 5000 : key === 'maxTravelFee' ? 10000 : 100}
+              step={key.includes('Km') ? .1 : 1} value={values[key]}
+              onChange={event => setPricing(current => ({ ...(current ?? data!.settings), [key]: Number(event.target.value) }))}/>
           </label>)}
-          <button type="submit" className="primary-button" disabled={!!busy}>Save pricing policy</button>
-        </form>}
-        <p className="aside-note">Pricing is an indicative hourly quote, not a payment or completed booking. Student and tutor addresses are not published.</p>
+          <button type="submit" className="primary-button" disabled={!!busy}>Save travel rules</button>
+        </form> : <p className="aside-note">Only owners can edit distance pricing rules.</p>}
+        <p className="aside-note">Prices are indicative hourly quotes. Students' and teachers' precise home addresses are not exposed.</p>
+        {isOwner && <section>
+          <div className="admin-section-title"><h2><ShieldCheck size={18}/> Ownership</h2></div>
+          <p className="aside-note">Any owner can grant another registered account owner/admin status and revoke staff access. The last active owner cannot be removed.</p>
+        </section>}
       </aside>
     </div>
   </main>;
