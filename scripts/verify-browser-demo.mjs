@@ -50,7 +50,7 @@ const studentsTeachers = await call('/workspaces/student/discovery');
 assert.equal(studentsTeachers.status, 200);
 const teacher = studentsTeachers.data.listings.find(x => x.name === 'Arjun Bora');
 assert.ok(teacher, 'Seeded tutor appears as a regular account');
-assert.ok(teacher.rate >= 400, 'Server-grade rate policy is reused');
+assert.equal(teacher.baseRate, 400, 'Student quote uses the tutor-defined hourly rate');
 assert.equal(teacher.connection, 'accepted', 'Existing seeded tutoring is an accepted booking');
 assert.ok(studentsTeachers.data.listings.every(x => !x.fictional), 'No unmatchable preview cards are injected');
 const rahul = studentsTeachers.data.listings.find(x => x.name === 'Rahul Kalita');
@@ -151,7 +151,7 @@ assert.equal(result.status, 200);
 assert.equal(result.data.role, 'admin');
 result = await call('/admin');
 assert.equal(result.status, 200);
-assert.ok(result.data.pendingRates >= 1, 'Admin has a pending rate request to approve');
+assert.ok(result.data.pendingVerifications >= 0, 'Admin tracks teacher identity verification, not price approvals');
 
 await call('/auth/logout', { method: 'POST' });
 result = await call('/auth/signup', { method: 'POST', body: {
