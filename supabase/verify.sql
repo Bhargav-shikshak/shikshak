@@ -12,9 +12,11 @@ assert (select role='student' from shikshak_private.profiles where id=ad),'Signu
 update shikshak_private.profiles set role='admin' where id=ad;
 perform set_config('request.jwt.claim.sub',t::text,true);
 j=public.shikshak_api('auth/me'); assert j->>'role'='teacher','Teacher session';
-j=public.shikshak_api('workspaces/teacher/listing','PUT','{"headline":"Physics lessons","subjects":["Physics"],"grades":["Classes 9-10"],"availability":"Evenings","description":"Test tutor listing","published":true,"rate":1}');
-assert (j->>'rate')::numeric=400,'Teacher cannot set own rate';
+j=public.shikshak_api('workspaces/teacher/listing','PUT','{"headline":"Physics lessons","subjects":["Physics"],"grades":["Classes 9-10"],"availability":"Evenings","description":"Test tutor listing","published":true,"rate":650}');
+assert (j->>'rate')::numeric=650,'Teacher controls hourly rate';
 begin perform public.shikshak_api('workspaces/teacher/discovery'); raise exception 'Teacher discovery allowed'; exception when sqlstate 'PT403' then null; end;
+-- This represents a completed identity review, not a price approval.
+update shikshak_private.profiles set teacher_verified=true where id=t;
 perform set_config('request.jwt.claim.sub',s::text,true);
 j=public.shikshak_api('workspaces/student/discovery'); assert jsonb_array_length(j->'listings')=1,'Discovery finds teacher';
 begin perform public.shikshak_api('admin'); raise exception 'Student admin allowed'; exception when sqlstate 'PT403' then null; end;
@@ -44,9 +46,9 @@ h=public.shikshak_api('workspaces/teacher/connections/'||s||'/classroom/homework
 perform set_config('request.jwt.claim.sub',s::text,true);
 begin perform public.shikshak_api('workspaces/student/connections/'||t||'/classroom/homework/'||(h->>'id')||'/submit','PUT','{"submission":"Changed"}'); raise exception 'Reviewed homework changed'; exception when sqlstate 'PT409' then null; end;
 perform set_config('request.jwt.claim.sub',t::text,true);
-perform public.shikshak_api('profile/request-rate','POST','{"rate":650}');
+j=public.shikshak_api('workspaces/teacher/listing');
+assert (j->>'rate')::int=650,'Teacher rate persists without admin approval';
 perform set_config('request.jwt.claim.sub',ad::text,true);
-j=public.shikshak_api('admin/accounts/'||t||'/rate','PUT','{"action":"approve"}'); assert (j->>'approvedRate')::int=650,'Approved rate';
 perform public.shikshak_api('admin/accounts/'||s||'/status','PUT','{"action":"suspend"}');
 perform set_config('request.jwt.claim.sub',s::text,true);
 begin perform public.shikshak_api('auth/me'); raise exception 'Suspended session allowed'; exception when sqlstate 'PT403' then null; end;
