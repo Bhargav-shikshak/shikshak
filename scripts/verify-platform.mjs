@@ -141,7 +141,7 @@ ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persi
 equal(result.data.listings.length, 1, 'Only the verified real teacher appears in discovery');
 
 result = await call('admin/pricing', { method: 'PUT', cookie: admin.cookie, body: {
-  baseRate: 500, freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
+  freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
 } });
 equal(result.status, 200, 'Local demo admin can update travel pricing');
 result = await call('workspaces/student/discovery', { cookie: student.cookie });
