@@ -41,7 +41,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
 
   return <form className="editor-form" onSubmit={submit}>
     <div className="editor-status"><span className={published ? 'visibility visible' : 'visibility'}>
-      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? (isTutor && !account.teacherVerified ? 'Awaiting teacher verification' : 'Visible in discovery') : 'Unpublished listing'}
+      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? (isTutor && !account.teacherVerified ? 'Listing saved · teacher identity review pending' : 'Visible in discovery') : 'Unpublished listing'}
     </span></div>
     <div className="form-grid">
       <label>Display name<input disabled value={account.name} title="Change your name in Profile"/></label>
@@ -49,7 +49,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
         placeholder={isTutor ? 'e.g. Maths & Physics tutor' : 'e.g. Looking for a Class 10 Maths tutor'}/></label>
       <label>Home neighbourhood<input disabled value={account.homeArea ? account.homeArea.locality + ', ' + account.homeArea.city : (catalog.localities.find(area => area.id === account.localityId)?.name ?? account.localityId)} title="Change your area in Profile"/></label>
       {isTutor ? <label>Your hourly teaching rate (₹)<input type="number" required min={100} max={10000} step={1} value={draft.rate || ''} onChange={event => update('rate', Number(event.target.value))}/>
-        <small className="field-help">You set your own base rate. Students see distance-adjusted quotes. Your listing will be discoverable after an administrator verifies your teacher account.</small></label>
+        <small className="field-help">Your hourly rate is saved immediately without admin price approval. Students see this rate plus any distance-based supplement.</small></label>
         : <label>Your hourly budget (₹)<input type="number" min={50} max={10000} step={1} required value={draft.rate || ''}
           onChange={event => update('rate', Number(event.target.value))}/></label>}
     </div>
