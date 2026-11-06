@@ -21,7 +21,7 @@ export interface DemoState {
   attempts: Record<string, { count: number; until: number }>;
 }
 export const initialPricing: PriceSettings = {
-  baseRate: 400, freeRadiusKm: 2, distanceStepKm: 2, stepFee: 50, maxTravelFee: 300,
+  freeRadiusKm: 2, distanceStepKm: 2, stepFee: 50, maxTravelFee: 300,
 };
 export function initialState(): DemoState {
   return {
@@ -306,7 +306,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         id: id(), email: entry.email, name: entry.name, role, localityId: entry.localityId,
         ...(entry.homeArea ? { homeArea: entry.homeArea, homeChangedAt: new Date().toISOString() } : {}),
         bio: '', strongSubjects: [], weakSubjects: [], qualifications: '', experience: '',
-        requestedRate: null, approvedRate: null, rateStatus: 'none', active: true,
+        active: true,
         teacherVerified: false,
         createdAt: new Date().toISOString(), salt, passwordHash: await hashPassword(entry.password, salt),
       };
@@ -348,7 +348,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     const account: Account = {
       id: id(), email: entry.email, name: entry.name, role: 'admin', localityId: entry.localityId,
       bio: '', strongSubjects: [], weakSubjects: [], qualifications: '', experience: '',
-      requestedRate: null, approvedRate: null, rateStatus: 'none', active: true,
+      active: true,
       createdAt: new Date().toISOString(), salt, passwordHash: await hashPassword(entry.password, salt),
     };
     state.accounts[account.id] = account;
@@ -368,7 +368,6 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         settings: state.pricing,
         publishedListings: Object.values(state.own).filter(x => x.published).length,
         matchedPairs: matches.size,
-        pendingRates: Object.values(state.accounts).filter(x => x.rateStatus === 'pending').length,
         pendingVerifications: Object.values(state.accounts).filter(x => x.role === 'teacher' && x.teacherVerified === false).length,
         viewerRole: me.role === 'owner' ? 'owner' : 'admin',
       };
@@ -378,8 +377,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       const data = await request.json().catch(() => null) as Partial<PriceSettings> | null;
       if (!data || !Object.keys(initialPricing).every(key => Object.prototype.hasOwnProperty.call(data, key))) return fail('Enter all pricing rules.');
       const next = data as PriceSettings;
-      if (!Number.isInteger(next.baseRate) || next.baseRate < 100 || next.baseRate > 10000 ||
-        !Number.isFinite(next.freeRadiusKm) || next.freeRadiusKm < 0 || next.freeRadiusKm > 30 ||
+      if (!Number.isFinite(next.freeRadiusKm) || next.freeRadiusKm < 0 || next.freeRadiusKm > 30 ||
         !Number.isFinite(next.distanceStepKm) || next.distanceStepKm <= 0 || next.distanceStepKm > 25 ||
         !Number.isInteger(next.stepFee) || next.stepFee < 0 || next.stepFee > 2000 ||
         !Number.isInteger(next.maxTravelFee) || next.maxTravelFee < 0 || next.maxTravelFee > 5000) return fail('Check the pricing values.');
@@ -403,13 +401,6 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
       }
       if (parts[5] === 'verification' && target.role === 'teacher' && (data?.action === 'verify' || data?.action === 'unverify')) {
         target.teacherVerified = data.action === 'verify';
-        return json(safeAccount(target));
-      }
-      if (parts[5] === 'rate' && target.role === 'teacher' && (data?.action === 'approve' || data?.action === 'reject')) {
-        if (target.rateStatus !== 'pending' || target.requestedRate === null) return fail('No pending price request.', 409);
-        if (data.action === 'approve') target.approvedRate = target.requestedRate;
-        target.rateStatus = data.action === 'approve' ? 'approved' : 'rejected';
-        if (state.own[target.id]) state.own[target.id].rate = target.approvedRate ?? state.pricing.baseRate;
         return json(safeAccount(target));
       }
       return fail('Unsupported admin action.');
@@ -454,15 +445,6 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
         locality: location.locality + ', ' + location.city,
         location: { lat: location.lat, lng: location.lng } });
     }
-    return json(safeAccount(me));
-  }
-  if (parts[2] === 'profile' && parts[3] === 'request-rate' && parts.length === 4 && method === 'POST') {
-    if (me.role !== 'teacher') return fail('Only tutors can request a rate change.', 403);
-    const body = await request.json().catch(() => null) as { rate?: number } | null;
-    const rate = body?.rate;
-    if (!Number.isInteger(rate) || rate! < 100 || rate! > 10000) return fail('Enter a proposed rate between ₹100 and ₹10,000.');
-    me.requestedRate = rate!;
-    me.rateStatus = 'pending';
     return json(safeAccount(me));
   }
 
