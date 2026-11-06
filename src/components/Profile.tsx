@@ -128,13 +128,19 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
           </>}
         </section>
         <section className="workspace-aside"><span className="aside-icon"><UserRound size={22}/></span><h2>Your account</h2><p><strong>Role:</strong> {isTeacher ? 'Teacher' : 'Student'}</p><p><strong>Area:</strong> {savedArea}</p><p>Your dashboard shows classes and tasks after a teacher accepts a booking.</p></section>
-        {isTeacher && <section className="workspace-aside">
-          <span className="aside-icon"><GraduationCap size={22}/></span><h2>Teacher verification and rates</h2>
-          <p><strong>Verification:</strong> {account.teacherVerified ? 'Verified by Shikshak' : 'Awaiting administrator review'}</p>
-          <p>You set your own hourly price in <strong>My listing</strong>. Distance is included in the student's final quoted rate.</p>
-          <button type="button" className="secondary-button" onClick={openListing}>Edit teaching rate and listing</button>
-          <p className="aside-note"><ShieldCheck size={14}/> A verification badge appears after an administrator confirms your teacher account.</p>
-        </section>}
+        {isTeacher && <>
+          <section className="workspace-aside">
+            <span className="aside-icon"><GraduationCap size={22}/></span><h2>Your hourly rate</h2>
+            <p>You set your own base hourly price and can change it whenever you want. No administrator price approval is required.</p>
+            <p>Students see your rate plus the applicable distance supplement.</p>
+            <button type="button" className="secondary-button" onClick={openListing}>Edit my rate and listing</button>
+          </section>
+          <section className="workspace-aside">
+            <span className="aside-icon"><ShieldCheck size={22}/></span><h2>Teacher identity verification</h2>
+            <p><strong>Status:</strong> {account.teacherVerified ? 'Verified by Shikshak' : 'Awaiting identity and qualification review'}</p>
+            <p className="aside-note">Verification controls your public badge and visibility in student discovery, not your hourly price.</p>
+          </section>
+        </>}
         {!isTeacher && <section className="workspace-aside"><span className="aside-icon"><BookOpen size={22}/></span><h2>Learning at your pace</h2><p>Your learning strengths and support needs stay private. Tutors only receive the lesson details you include when requesting a class.</p></section>}
       </aside>
     </div>
