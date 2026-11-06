@@ -331,7 +331,6 @@ async function seedBrowserDemo(): Promise<DemoState> {
 
   const student = members[0];
   const teacher = members[1];
-  const otherTeacher = members[2];
 
   // Seed an accepted first-class request; subsequent activities share the classroom.
   const initialBooking = await checked(state, '/workspaces/student/bookings', 'POST', {
