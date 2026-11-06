@@ -138,7 +138,7 @@ export function Profile({ catalog, account, onUpdated, openListing, openClassroo
           <section className="workspace-aside">
             <span className="aside-icon"><ShieldCheck size={22}/></span><h2>Teacher identity verification</h2>
             <p><strong>Status:</strong> {account.teacherVerified ? 'Verified by Shikshak' : 'Awaiting identity and qualification review'}</p>
-            <p className="aside-note">Verification controls your public badge and visibility in student discovery, not your hourly price.</p>
+            <p className="aside-note">Verification adds a public badge. You can appear in discovery, receive bookings and set your hourly price with or without it.</p>
           </section>
         </>}
         {!isTeacher && <section className="workspace-aside"><span className="aside-icon"><BookOpen size={22}/></span><h2>Learning at your pace</h2><p>Your learning strengths and support needs stay private. Tutors only receive the lesson details you include when requesting a class.</p></section>}

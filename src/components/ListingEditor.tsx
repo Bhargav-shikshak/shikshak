@@ -41,7 +41,7 @@ export function ListingEditor({ catalog, role, account, initial, onSaved }: {
 
   return <form className="editor-form" onSubmit={submit}>
     <div className="editor-status"><span className={published ? 'visibility visible' : 'visibility'}>
-      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? (isTutor && !account.teacherVerified ? 'Listing saved · teacher identity review pending' : 'Visible in discovery') : 'Unpublished listing'}
+      {published ? <Eye size={16}/> : <EyeOff size={16}/>} {published ? 'Visible in discovery' : 'Unpublished listing'}
     </span></div>
     <div className="form-grid">
       <label>Display name<input disabled value={account.name} title="Change your name in Profile"/></label>

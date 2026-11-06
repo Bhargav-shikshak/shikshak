@@ -475,7 +475,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     const maxRate = Number(params.get('maxRate')) || Infinity;
     const subject = params.get('subject');
     const grade = params.get('grade');
-    const published = others.filter(item => item.published && state.accounts[item.id]?.teacherVerified !== false);
+    const published = others.filter(item => item.published);
     const listings: DiscoveryListing[] = published.map(item => {
       const distance = distanceKm(origin, item.location);
       const pricing = role === 'student' ? quote(state, item, userLocality) : null;
@@ -510,7 +510,7 @@ export async function demoApi(request: Request, state: DemoState, opts: Options 
     const teacherId = cleanText(body?.teacherId, 80);
     const teacher = state.accounts[teacherId];
     const listing = state.own[teacherId];
-    if (!teacher || !teacher.active || teacher.role !== 'teacher' || teacher.teacherVerified === false || !listing?.published)
+    if (!teacher || !teacher.active || teacher.role !== 'teacher' || !listing?.published)
       return fail('This tutor is not available for booking.', 404);
     const subject = cleanText(body?.subject, 80);
     const grade = cleanText(body?.grade, 80);

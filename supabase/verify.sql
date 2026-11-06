@@ -15,8 +15,7 @@ j=public.shikshak_api('auth/me'); assert j->>'role'='teacher','Teacher session';
 j=public.shikshak_api('workspaces/teacher/listing','PUT','{"headline":"Physics lessons","subjects":["Physics"],"grades":["Classes 9-10"],"availability":"Evenings","description":"Test tutor listing","published":true,"rate":650}');
 assert (j->>'rate')::numeric=650,'Teacher controls hourly rate';
 begin perform public.shikshak_api('workspaces/teacher/discovery'); raise exception 'Teacher discovery allowed'; exception when sqlstate 'PT403' then null; end;
--- This represents a completed identity review, not a price approval.
-update shikshak_private.profiles set teacher_verified=true where id=t;
+-- Unverified teachers remain discoverable and bookable without a badge.
 perform set_config('request.jwt.claim.sub',s::text,true);
 j=public.shikshak_api('workspaces/student/discovery'); assert jsonb_array_length(j->'listings')=1,'Discovery finds teacher';
 begin perform public.shikshak_api('admin'); raise exception 'Student admin allowed'; exception when sqlstate 'PT403' then null; end;

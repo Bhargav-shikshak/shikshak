@@ -6,7 +6,7 @@ This change set is staged on `dev/pricing-verification-roles`. **Production main
 
 - A tutor sets their own hourly base rate on **My listing**. The old platform base rate and custom-rate-approval flow are no longer used in the new database gateway.
 - A student's hourly quote uses `tutor base rate + capped travel supplement`. The distance is calculated from the coarse teacher and student neighbourhood coordinates. Configurable travel policy: included radius, distance step, fee per step and cap. Example: ₹500/hour, 6 km apart, 2 km included, ₹50 per extra 2 km, ₹300 cap → ₹600/hour quoted.
-- New tutors are unverified. A tutor can prepare a listing but does not appear in student discovery and cannot receive new booking requests until an administrator or owner verifies the account. A blue check-shaped **Verified by Shikshak** badge appears after approval. Revocation hides new discovery immediately but does not cancel existing classrooms.
+- New tutors are unverified. Active teachers with published listings appear in student discovery and on the map, can be saved, and can receive booking requests with or without verification. Verification adds a blue check-shaped **Verified by Shikshak** badge only. Revocation removes that badge without changing discovery, bookings, pricing or classrooms.
 - Any number of owners and admins can exist. Owners can promote another *confirmed, active* registered member to owner or admin, and can revoke staff permissions. Original student/teacher role is restored on revocation. Last active owner and self-demotion are protected. Admins can verify tutors and moderate student/teacher accounts and listings, but cannot grant/revoke staff access or change travel policy.
 - Staff role changes and travel-policy changes require an **AAL2 Supabase session with TOTP**. Owners enroll an authenticator in the Owner console and must enter a six-digit code after each ordinary password login. The SQL gateway enforces AAL2, even if a caller bypasses the Cloudflare Worker and calls the database RPC directly. Privileged role/verification transitions are recorded in private `staff_audit`.
 - First-time setup creates **the first owner**, not an admin. The existing hashed one-time bootstrap key is checked against a confirmed Supabase Auth user. Later owners are appointed by existing owners.
@@ -18,7 +18,7 @@ This change set is staged on `dev/pricing-verification-roles`. **Production main
 3. Point **only the preview deployment** at the staging Supabase URL and publishable key. Avoid reusing production database bindings in the test branch. `VITE_SERVICE_MODE=api` remains the production-build frontend setting.
 4. Sign up and confirm an account on staging. Configure a random 24+ character hashed bootstrap key as documented in `docs/BACKEND.md`. Open `#admin` → First-time setup. That account becomes the first owner.
 5. In Owner console, enroll TOTP using an authenticator application, verify the six-digit code and confirm that owner actions are blocked before MFA and enabled after AAL2.
-6. Register two teachers and one student. Confirm neither teacher is discoverable before verification. As admin/owner, verify one teacher, then publish their listing with a self-chosen rate. Check badge, discovery, distance-adjusted price and booking. Revoke verification and confirm new discovery/booking is blocked.
+6. Register two teachers and one student. Confirm both published teachers are discoverable and bookable before verification, without a badge. As admin/owner, verify one teacher, then publish their listing with a self-chosen rate. Check badge, discovery, distance-adjusted price and booking. Revoke verification and confirm only the badge disappears; discovery and new bookings continue.
 7. Create a second owner and an admin from confirmed existing accounts. Check admin cannot assign/revoke staff or edit travel fees. Check owner cannot demote self or the last owner. Verify role changes are captured by `staff_audit`.
 8. Confirm existing chats/classrooms, notes, PDF storage, booking permissions, tests and mobile UI work. Then review a migration/rollback plan and explicitly approve production deployment.
 
@@ -39,3 +39,5 @@ npm run test:pdf-notes
 npm run test:home-area
 npx wrangler deploy --dry-run
 ```
+
+For a database that already has the pricing/owner upgrade, apply `supabase/verification-badge-only-upgrade.sql` to remove the old verification gates without changing any account, listing, rate or verification status.

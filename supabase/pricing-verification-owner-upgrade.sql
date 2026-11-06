@@ -103,7 +103,7 @@ begin
   if me.role not in ('admin','owner') then perform shikshak_private.fail('Administrator access required.',403); end if;
   if array_length(p,1)=1 and method='GET' then
    return jsonb_build_object('accounts',(select coalesce(jsonb_agg(shikshak_private.profile(x)),'[]'::jsonb) from (select * from shikshak_private.profiles order by created_at desc limit 500) x),
-   'settings',settings,'viewerRole',me.role,'publishedListings',(select count(*) from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id where l.published and p.teacher_verified),
+   'settings',settings,'viewerRole',me.role,'publishedListings',(select count(*) from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id where l.published),
    'matchedPairs',(select count(*) from shikshak_private.rooms),'pendingVerifications',(select count(*) from shikshak_private.profiles p where p.role='teacher' and p.active and not p.teacher_verified));
   end if;
   if p=array['admin','pricing'] and method='PUT' then
@@ -184,7 +184,7 @@ if p[2]='accounts' and array_length(p,1)=4 and method='PUT' then
    jsonb_build_object('distance',shikshak_private.distance(t.data->'homeArea',a),
    'saved',exists(select 1 from shikshak_private.saves v where v.user_id=uid and v.teacher_id=t.id),
    'connection',(select bk.status from shikshak_private.bookings bk where bk.student_id=uid and bk.teacher_id=t.id order by bk.created_at desc limit 1)) j
-   from shikshak_private.profiles t join shikshak_private.listings tl on tl.user_id=t.id where t.role='teacher' and t.active and t.teacher_verified and tl.published
+   from shikshak_private.profiles t join shikshak_private.listings tl on tl.user_id=t.id where t.role='teacher' and t.active and tl.published
   ) x where
    (coalesce(input->>'subject','')='' or (x.j->'subjects')?(input->>'subject')) and
    (coalesce(input->>'grade','')='' or (x.j->'grades')?(input->>'grade')) and
@@ -196,7 +196,7 @@ if p[2]='accounts' and array_length(p,1)=4 and method='PUT' then
  end if;
  if res='listings' and p[5]='save' and method='PUT' and array_length(p,1)=5 then
   if me.role<>'student' then perform shikshak_private.fail('Teachers cannot browse or save student profiles.',403); end if;
-  if not exists(select 1 from shikshak_private.listings li join shikshak_private.profiles pr on pr.id=li.user_id where li.user_id=p[4]::uuid and li.published and pr.role='teacher' and pr.active and pr.teacher_verified) then perform shikshak_private.fail('Tutor not found.',404); end if;
+  if not exists(select 1 from shikshak_private.listings li join shikshak_private.profiles pr on pr.id=li.user_id where li.user_id=p[4]::uuid and li.published and pr.role='teacher' and pr.active) then perform shikshak_private.fail('Tutor not found.',404); end if;
   if jsonb_typeof(input->'saved') is distinct from 'boolean' then perform shikshak_private.fail('Choose whether to save this tutor.'); end if;
   if (input->>'saved')::boolean then insert into shikshak_private.saves values(uid,p[4]::uuid) on conflict do nothing;
   else delete from shikshak_private.saves where user_id=uid and teacher_id=p[4]::uuid; end if;
@@ -210,7 +210,7 @@ if p[2]='accounts' and array_length(p,1)=4 and method='PUT' then
   if method='POST' and array_length(p,1)=3 then
    if me.role<>'student' then perform shikshak_private.fail('Only students can request classes.',403); end if;
    peer=(input->>'teacherId')::uuid;
-   select * into target from shikshak_private.profiles where id=peer and role='teacher' and active and teacher_verified;
+   select * into target from shikshak_private.profiles where id=peer and role='teacher' and active;
    l=shikshak_private.listing(peer);
    if target.id is null or l is null or not (l->>'published')::boolean then perform shikshak_private.fail('This tutor is unavailable.',404); end if;
    dt=(input->>'startsAt')::timestamptz; n=(input->>'durationMinutes')::numeric;

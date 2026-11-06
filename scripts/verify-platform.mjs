@@ -79,7 +79,8 @@ equal(result.status, 200, 'Student listing published');
 
 result = await call('workspaces/student/discovery', { cookie: student.cookie });
 equal(result.status, 200, 'Student discovery is available');
-equal(result.data.listings.length, 0, 'An unverified teacher is hidden from discovery');
+equal(result.data.listings.length, 1, 'An unverified published teacher appears in discovery and map data');
+equal(result.data.listings[0].teacherVerified, false, 'Unverified teacher has no badge');
 result = await call('workspaces/student/listings/' + teacher.data.id + '/interest', {
   method: 'PUT', cookie: student.cookie,
 });
@@ -138,7 +139,7 @@ ok(foundTeacher.teacherVerified, 'Verified teacher has a verified badge marker')
 equal(foundTeacher.baseRate, 850, 'Quote uses teacher-defined base rate');
 equal(foundTeacher.travelFee, foundTeacher.rate - foundTeacher.baseRate, 'Quote shows travel component');
 ok(result.data.listings.every(x => !x.fictional), 'Discovery only contains persisted listings');
-equal(result.data.listings.length, 1, 'Only the verified real teacher appears in discovery');
+equal(result.data.listings.length, 1, 'Only the published real teacher appears in discovery');
 
 result = await call('admin/pricing', { method: 'PUT', cookie: admin.cookie, body: {
   freeRadiusKm: 0, distanceStepKm: 1, stepFee: 75, maxTravelFee: 450,
@@ -149,6 +150,17 @@ const newQuote = result.data.listings.find(x => x.id === teacher.data.id);
 equal(newQuote.baseRate, 850, 'Teacher-set rate survives travel policy update');
 ok(newQuote.travelFee >= 75, 'Updated travel policy applies');
 
+result = await call('admin/accounts/' + teacher.data.id + '/verification', {
+  method: 'PUT', cookie: admin.cookie, body: { action: 'unverify' } });
+equal(result.status, 200, 'Admin can remove the badge');
+result = await call('workspaces/student/discovery', { cookie: student.cookie });
+const unverifiedTeacher = result.data.listings.find(x => x.id === teacher.data.id);
+ok(unverifiedTeacher, 'Revoking verification keeps teacher discoverable');
+equal(unverifiedTeacher.teacherVerified, false, 'Revoking verification removes only the badge');
+result = await call('workspaces/student/listings/' + teacher.data.id + '/save', {
+  method: 'PUT', cookie: student.cookie, body: { saved: true } });
+equal(result.status, 200, 'Student can save an unverified teacher');
+
 const requested = await call('workspaces/student/bookings', { method: 'POST', cookie: student.cookie,
   body: {
     teacherId: teacher.data.id, subject: 'Mathematics', grade: 'Classes 9–10',
@@ -156,7 +168,7 @@ const requested = await call('workspaces/student/bookings', { method: 'POST', co
     note: 'Please help me with algebra.',
   },
 });
-equal(requested.status, 201, 'Students initiate class bookings');
+equal(requested.status, 201, 'Students can book an unverified teacher');
 equal(requested.data.status, 'pending', 'Booking awaits tutor approval');
 equal(requested.data.studentName, 'Student One', 'Booking shares the student name');
 ok(!('location' in requested.data) && !('homeArea' in requested.data),
