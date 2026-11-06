@@ -15,8 +15,23 @@ alter table shikshak_private.staff_audit enable row level security;
 revoke all on shikshak_private.staff_audit from public,anon,authenticated;
 revoke all on sequence shikshak_private.staff_audit_id_seq from public,anon,authenticated;
 update shikshak_private.settings set data=data-'baseRate' where id=true;
+update shikshak_private.profiles
+  set data=data-'requestedRate'-'approvedRate'-'rateStatus'
+  where data ?| array['requestedRate','approvedRate','rateStatus'];
 -- Older accounts remain unverified until an administrator reviews them.
 
+create or replace function shikshak_private.new_user() returns trigger
+language plpgsql security definer set search_path='' as $
+declare m jsonb=new.raw_user_meta_data; a jsonb; r text=m->>'role'; begin
+ if r not in ('student','teacher') or r is null then r='student'; end if;
+ a=case when m->'homeArea' is not null then shikshak_private.area(m->'homeArea')
+ else '{"lat":26.16,"lng":91.77,"city":"Guwahati","locality":"Guwahati"}'::jsonb end;
+ insert into shikshak_private.profiles(id,role,data) values(new.id,r,jsonb_build_object(
+ 'id',new.id,'email',new.email,'name',coalesce(nullif(shikshak_private.txt(m,'name',60),''),'New member'),
+ 'role',r,'localityId','ganeshguri','homeArea',a,'homeChangedAt',now(),'bio','','strongSubjects','[]'::jsonb,
+ 'weakSubjects','[]'::jsonb,'qualifications','','experience','','active',true,'createdAt',now()));
+ return new;
+end $;
 create or replace function shikshak_private.profile(p shikshak_private.profiles) returns jsonb
 language sql stable set search_path='' as $$ select p.data||jsonb_build_object('id',p.id,'role',p.role,'active',p.active,'teacherVerified',case when p.role='teacher' then p.teacher_verified else false end) $$;
 
@@ -25,9 +40,9 @@ language sql stable set search_path='' as $$
  select l.data||jsonb_build_object('id',p.id,'role',p.role,'name',p.data->>'name','localityId',p.data->>'localityId',
  'locality',(p.data#>>'{homeArea,locality}')||', '||(p.data#>>'{homeArea,city}'),
  'location',jsonb_build_object('lat',p.data#>'{homeArea,lat}','lng',p.data#>'{homeArea,lng}'),
- 'rate',case when p.role='teacher' then (l.data->>'rate')::numeric else (l.data->>'rate')::numeric end,
+ 'rate',(l.data->>'rate')::numeric,
  'published',l.published,'teacherVerified',p.teacher_verified,'qualifications',p.data->>'qualifications','experience',p.data->>'experience')
- from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id cross join shikshak_private.settings s where p.id=uid and p.active
+ from shikshak_private.listings l join shikshak_private.profiles p on p.id=l.user_id where p.id=uid and p.active
 $$;
 
 create or replace function shikshak_private.quote(teacher uuid, student_area jsonb) returns jsonb
