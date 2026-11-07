@@ -11,8 +11,8 @@ export function Auth({ catalog, onSuccess, admin = false }: {
   onSuccess: (account: PublicAccount) => void;
   admin?: boolean;
 }) {
-  const [mode, setMode] = useState<'login' | 'signup' | 'bootstrap'>('login');
-  const [role, setRole] = useState<Role>('student');
+  const [mode, setMode] = useState<'login' | 'signup' | 'bootstrap'>(!admin && window.location.hash.startsWith('#signup') ? 'signup' : 'login');
+  const [role, setRole] = useState<Role>(window.location.hash === '#signup/teacher' ? 'teacher' : 'student');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -131,7 +131,10 @@ export function Auth({ catalog, onSuccess, admin = false }: {
       {admin && !isBrowserDemo && <p className="auth-footnote">Create and confirm a regular account first. The one-time setup key creates the first owner, who can assign further owners and admins.</p>}
       {admin && isBrowserDemo && <p className="auth-footnote">This is a local testing administrator, not a privileged production account.</p>}
       {isBrowserDemo && <button type="button" className="reset-demo-button" onClick={() => void resetDemo()}>Reset local demo accounts and data</button>}
-      <a className="auth-back" href={admin ? '#login' : '#admin'}>{admin ? 'Back to Shikshak' : 'Administrator access'}</a>
+      <div className="auth-extra-links">
+        <a className="auth-back" href={admin ? '#login' : '#welcome'}>{admin ? 'Back to sign in' : 'Back to Shikshak'}</a>
+        {!admin && <a className="auth-back" href="#admin">Administrator access</a>}
+      </div>
     </section>
   </main>;
 }

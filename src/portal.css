@@ -538,3 +538,6 @@
   .legal-article section p { font-size: 13px; }
   .portal-footer .footer-admin-link { margin-left: 0; }
 }
+
+/* Public-site links from the existing authentication panel. */
+.auth-extra-links { display: flex; align-items: center; flex-wrap: wrap; column-gap: 20px; row-gap: 0; }

@@ -6,6 +6,7 @@ import { api, isBrowserDemo } from './api';
 import { useResource } from './useResource';
 import { ErrorNotice } from './components/Common';
 import { Auth } from './components/Auth';
+import { Landing } from './components/Landing';
 import { DemoAccountSwitcher } from './components/DemoAccountSwitcher';
 import { Admin } from './components/Admin';
 import { Classroom } from './components/Classroom';
@@ -100,12 +101,14 @@ function App() {
       document.title = (legalKind === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions') + ' · Shikshak';
       return;
     }
-    if (!session) {
-      document.title = 'Shikshak';
+    if (!session || routeParts[0] === 'welcome') {
+      document.title = routeParts[0] === 'login' ? 'Log in · Shikshak' :
+        routeParts[0] === 'signup' ? 'Sign up · Shikshak' :
+        'Shikshak · Home tuition, closer to home';
       return;
     }
     document.title = ((session.role === 'admin' || session.role === 'owner') ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
-  }, [session, view, legalKind]);
+  }, [session, view, legalKind, route]);
 
   function loggedIn(account: PublicAccount) {
     setSession(account);
@@ -124,13 +127,27 @@ function App() {
     finally { setSigningOut(false); }
   }
 
-  if (legalKind) return <LegalPage kind={legalKind} backHref={session?.role === 'admin' ? '#admin' : role ? link(role, 'home') : '#login'}/>;
+  if (legalKind) return <LegalPage kind={legalKind}
+    backHref={session?.role === 'admin' || session?.role === 'owner' ? '#admin' : role ? link(role, 'home') : '#welcome'}/>;
+
+  if (session === undefined) return <main id="main" className="workspace-page" role="status">Checking your session…</main>;
+
+  // Keep the marketing site independent of catalog data and the logged-in workspace.
+  const publicRoute = routeParts[0] === 'welcome' ||
+    (!session && routeParts[0] !== 'login' && routeParts[0] !== 'signup' && !isAdminRoute);
+  if (publicRoute) return <>
+    <Landing memberHref={role ? link(role, 'home') : session ? '#admin' : undefined}/>
+    <SiteFooter variant="member"/>
+  </>;
 
   if (!catalog) return <main id="main" className="workspace-page">
     {catalogError ? <ErrorNotice message={catalogError} retry={refresh}/> : <p role="status">Loading Shikshak…</p>}
   </main>;
-  if (session === undefined) return <main id="main" className="workspace-page" role="status">Checking your session…</main>;
-  if (!session) return <><Auth catalog={catalog} onSuccess={loggedIn} admin={isAdminRoute}/><SiteFooter variant="auth"/></>;
+  if (!session) return <>
+    <Auth key={isAdminRoute ? 'admin' : routeParts[0] + '/' + (routeParts[1] || '')}
+      catalog={catalog} onSuccess={loggedIn} admin={isAdminRoute}/>
+    <SiteFooter variant="auth"/>
+  </>;
 
   if ((session.role === 'admin' || session.role === 'owner')) return <>
     <header className="site-header"><div className="header-inner portal-header">
