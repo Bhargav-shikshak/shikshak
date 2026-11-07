@@ -148,7 +148,7 @@ export function Landing({ memberHref }: { memberHref?: string }) {
           <p>Build your profile, set your own base rate and manage class requests from students looking for help.</p>
           <ul>
             <li><CheckCircle2 size={17} aria-hidden="true"/> Set your subjects and tuition fees</li>
-            <li><CheckCircle2 size={17} aria-hidden="true"/> Apply for teacher verification</li>
+            <li><CheckCircle2 size={17} aria-hidden="true"/> Teacher profiles reviewed by admins</li>
             <li><CheckCircle2 size={17} aria-hidden="true"/> Manage lessons and student work</li>
           </ul>
           <a href={teacherHref}>{memberHref ? 'Open my workspace' : 'Start teaching'} <ChevronRight size={19} aria-hidden="true"/></a>
@@ -170,7 +170,7 @@ export function Landing({ memberHref }: { memberHref?: string }) {
 
       <section className="landing-section landing-stories" id="landing-stories" aria-labelledby="landing-stories-heading">
         <div className="landing-stories-heading">
-          <div><p className="landing-kicker">VOICES WE HOPE TO HEAR</p><h2 id="landing-stories-heading">A little word of <em>mouth.</em></h2></div>
+          <div><p className="landing-kicker">REVIEWS & TESTIMONIALS</p><h2 id="landing-stories-heading">A little word of <em>mouth.</em></h2></div>
           <p className="landing-placeholder-disclosure"><Sparkles size={17} aria-hidden="true"/> Sample testimonials for layout preview only. These are fictional examples, not real customer feedback or ratings.</p>
         </div>
         <div className="landing-story-grid">
