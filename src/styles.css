@@ -117,7 +117,6 @@ select { appearance: none; }
 .skeleton-card { min-height: 188px; border-radius: 15px; border: 1px solid var(--line); background: linear-gradient(110deg, #f2eee6 25%, #faf7f0 42%, #f2eee6 62%); }
 .map-shell { position: sticky; top: 96px; height: max(510px, calc(100dvh - 121px)); min-width: 0; overflow: hidden; isolation: isolate; border: 1px solid #dddde0; border-radius: 19px; background: #edf1e9; }
 .map-canvas { position: absolute; inset: 0; background-color: #e9eee5; background-image: linear-gradient(#fff6 1px, transparent 1px), linear-gradient(90deg, #fff6 1px, transparent 1px); background-size: 33px 33px; z-index: 0; }
-.map-canvas .leaflet-tile-pane { filter: saturate(.88) contrast(1.01); }
 .map-place { display: flex; align-items: center; gap: 10px; position: absolute; left: 15px; top: 15px; z-index: 4; border: 1px solid #e4e7df; padding: 8px 12px 8px 8px; border-radius: 12px; background: #fffefa; box-shadow: var(--shadow); }
 .map-place-icon { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 8px; color: #315b50; background: #eae8f3; }
 .map-place strong, .map-place small { display: block; }
@@ -141,12 +140,12 @@ select { appearance: none; }
 .map-note { position: absolute; left: 15px; bottom: 17px; z-index: 4; display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: #364f44; background: #fffefadd; border-radius: 20px; padding: 4px 8px; }
 .map-offline { position: absolute; left: 15px; top: 78px; z-index: 4; font-size: 11px; color: #5c5f53; background: #fffefae0; padding: 5px 8px; border-radius: 6px; }
 .map-expanded { position: fixed; inset: 13px; z-index: 40; height: auto; }
-.price-pin { background: #fffefa; border: 1px solid #c8d4c7; border-radius: 99px; box-shadow: 0 4px 11px #22372c26; display: grid; place-items: center; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); }
+.price-pin { position: relative; min-width: 62px; min-height: 32px; padding: 0 8px; cursor: pointer; background: #fffefa; border: 1px solid #c8d4c7; border-radius: 99px; box-shadow: 0 4px 11px #22372c26; display: grid; place-items: center; font-family: "DM Sans", "Segoe UI", sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); }
 .price-pin::after { content: ""; position: absolute; width: 7px; height: 7px; bottom: -5px; left: calc(50% - 4px); background: inherit; border-right: inherit; border-bottom: inherit; transform: rotate(45deg); border-bottom-right-radius: 2px; }
 .price-pin:hover, .price-pin-active { background: var(--ink); border-color: var(--ink); color: white; }
 .price-pin:focus-visible { outline-color: #265b4e; }
-.map-shell .leaflet-control-attribution { font-size: 9px; background: #fffefade; color: #47594f; }
-.map-shell .leaflet-control-attribution a { color: #2d6256; }
+.map-shell .maplibregl-ctrl-attrib { font-size: 9px; background: #fffefade; color: #47594f; }
+.map-shell .maplibregl-ctrl-attrib a { color: #2d6256; }
 
 
 
@@ -182,3 +181,8 @@ select { appearance: none; }
   .map-find input { font-size: 12px; }
   .map-offline { top: 124px; left: 10px; max-width: calc(100% - 20px); }
 }
+
+/* MapLibre markers are native DOM elements layered over the Atlas vector canvas. */
+.map-location-dot { display: block; width: 18px; height: 18px; border: 3px solid #fff;
+  border-radius: 50%; box-shadow: 0 2px 10px #20302c70; }
+.map-shell .maplibregl-ctrl-attrib { font-size: 9px; background: #fffefade; }
