@@ -404,8 +404,8 @@
 .home-area-map-wrap { position: relative; width: 100%; height: clamp(220px, 35dvh, 310px);
   background: #eaf0e7; border: 1px solid #d7ddd1; border-radius: 11px; overflow: hidden; isolation: isolate; }
 .home-area-map { width: 100%; height: 100%; z-index: 0; cursor: crosshair; }
-.home-area-map .leaflet-container { font-family: "DM Sans", sans-serif; }
-.home-area-map .leaflet-control-attribution { font-size: 9px; }
+.home-area-map .maplibregl-map { font-family: "DM Sans", sans-serif; }
+.home-area-map .maplibregl-ctrl-attrib { font-size: 9px; }
 .home-area-locate { position: absolute; z-index: 500; right: 10px; top: 9px;
   display: inline-flex; align-items: center; gap: 5px; padding: 8px 10px;
   border: 1px solid #d9e0d9; border-radius: 8px; box-shadow: 0 3px 12px #182b2230;
@@ -432,7 +432,7 @@
   .home-area-locate { top: 8px; right: 8px; }
 }
 
-/* Home pin uses CSS artwork rather than Leaflet's external PNG marker files. */
+/* Draggable CSS home-area pin for MapLibre. */
 .home-area-marker { background: transparent; border: 0; }
 .home-area-marker span { position: relative; display: block; width: 24px; height: 24px;
   border-radius: 50% 50% 50% 0; background: #3d7868; border: 3px solid #fffefa;
