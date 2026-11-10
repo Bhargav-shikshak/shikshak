@@ -43,7 +43,7 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
       scrollZoom: false, dragRotate: false, pitchWithRotate: false,
     });
     map.current = instance;
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     instance.on('style.load', () => applyAtlasTheme(instance));
     instance.on('error', (event) => {
       console.warn('Home area basemap failed to load:', event.error);
