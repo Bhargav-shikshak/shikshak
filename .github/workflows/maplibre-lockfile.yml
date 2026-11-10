@@ -28,3 +28,11 @@ jobs:
             git commit -m 'Generate MapLibre lockfile'
             git push
           fi
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Type-check and build Shikshak
+        run: npm run build
+      - name: Verify user and booking workflows
+        run: npm run test:platform
+      - name: Verify geocoding and coarse location privacy
+        run: npm run test:home-area
