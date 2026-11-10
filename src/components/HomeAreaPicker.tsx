@@ -47,7 +47,17 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     const canvasNode = mapNode.current;
     canvasNode.dataset.mapStatus = 'loading';
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    instance.on('style.load', () => applyAtlasTheme(instance));
+    instance.on('style.load', () => {
+      try {
+        const result = applyAtlasTheme(instance);
+        canvasNode.dataset.atlasPropertyChanges = String(result.propertyChanges);
+        canvasNode.dataset.atlasChangedLayers = String(result.changedLayerIds);
+      } catch (cause) {
+        canvasNode.dataset.mapStatus = 'error';
+        console.error('Unable to apply complete Atlas map theme:', cause);
+        setError('Map theme could not be applied. Please retry or reload the page.');
+      }
+    });
     instance.on('idle', () => {
       canvasNode.dataset.mapStatus = 'ready';
     });
