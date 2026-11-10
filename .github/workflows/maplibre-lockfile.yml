@@ -36,3 +36,11 @@ jobs:
         run: npm run test:platform
       - name: Verify geocoding and coarse location privacy
         run: npm run test:home-area
+      - name: Verify local browser demo
+        run: npm run test:browser-demo
+      - name: Verify PDF note workflows
+        run: npm run test:pdf-notes
+      - name: Verify Supabase gateway
+        run: npm run test:backend
+      - name: Validate Cloudflare bundle without deploying
+        run: npx --yes wrangler@4 deploy --dry-run --outdir .wrangler/dry-run
