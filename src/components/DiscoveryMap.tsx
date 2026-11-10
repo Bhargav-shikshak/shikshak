@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
+import maplibregl from 'maplibre-gl';
 import { ArrowRight, Crosshair, Layers3, LocateFixed, MapPin, Maximize2, Minus, Plus, Search, X } from 'lucide-react';
 import type { Catalog, DiscoveryListing, Point } from '../../shared/domain';
-import { mapConfig } from '../mapConfig';
+import { applyAtlasTheme, ATLAS_STYLE_URL } from '../atlasTheme';
 import { searchPlaces, type PlaceResult } from '../services/placeSearch';
 import { Avatar, money } from './Common';
-import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface Props {
   catalog: Catalog;
@@ -19,9 +19,9 @@ interface Props {
 
 export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOpen, mobileVisible }: Props) {
   const node = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.LayerGroup | null>(null);
-  const locationLayer = useRef<L.LayerGroup | null>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const layer = useRef<maplibregl.Marker[]>([]);
+  const locationLayer = useRef<maplibregl.Marker[]>([]);
   const selection = useRef(onSelect);
   const searchSequence = useRef(0);
   const [expanded, setExpanded] = useState(false);
@@ -42,99 +42,91 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
 
   useEffect(() => {
     if (!node.current) return;
-    const instance = L.map(node.current, {
-      zoomControl: false,
-      scrollWheelZoom: false,
-      minZoom: 2,
-      maxZoom: mapConfig.tileMaxZoom,
+    const instance = new maplibregl.Map({
+      container: node.current,
+      style: ATLAS_STYLE_URL,
+      center: [centerLng, centerLat],
+      zoom: 13, minZoom: 2, maxZoom: 19,
+      scrollZoom: false, dragRotate: false, pitchWithRotate: false,
       attributionControl: true,
-    }).setView([centerLat, centerLng], 13);
-
-    // Consistent light OpenStreetMap basemap, independent of Shikshak's UI theme.
-    L.tileLayer(mapConfig.tileUrl, {
-      maxZoom: mapConfig.tileMaxZoom,
-      attribution: mapConfig.tileAttribution,
-      updateWhenIdle: true,
-      keepBuffer: 1,
-      subdomains: 'abcd',
-    }).on('tileerror', () => setTiles('offline'))
-      .on('load', () => setTiles('ready'))
-      .addTo(instance);
-    instance.attributionControl.setPrefix(false);
+    });
     map.current = instance;
-    locationLayer.current = L.layerGroup().addTo(instance);
-    layer.current = L.layerGroup().addTo(instance);
-
-    const observer = new ResizeObserver(() => instance.invalidateSize({ pan: false }));
+    instance.on('style.load', () => {
+      applyAtlasTheme(instance);
+      setTiles('ready');
+    });
+    instance.on('error', () => setTiles('offline'));
+    const observer = new ResizeObserver(() => instance.resize());
     observer.observe(node.current);
     return () => {
       observer.disconnect();
+      layer.current.forEach(marker => marker.remove());
+      locationLayer.current.forEach(marker => marker.remove());
+      layer.current = [];
+      locationLayer.current = [];
       instance.remove();
       map.current = null;
-      layer.current = null;
-      locationLayer.current = null;
     };
   }, [centerLat, centerLng]);
 
   useEffect(() => {
-    if (expanded) map.current?.scrollWheelZoom.enable();
-    else map.current?.scrollWheelZoom.disable();
-    map.current?.invalidateSize({ pan: false });
+    if (expanded) map.current?.scrollZoom.enable();
+    else map.current?.scrollZoom.disable();
+    map.current?.resize();
   }, [expanded, mobileVisible]);
 
   useEffect(() => {
-    if (!locationLayer.current || !map.current) return;
-    locationLayer.current.clearLayers();
-    if (originLat !== undefined && originLng !== undefined) {
-      L.circleMarker([originLat, originLng], {
-        radius: 7, color: '#ffffff', weight: 3, fillColor: '#44877b', fillOpacity: 1,
-      }).bindTooltip('Search area').addTo(locationLayer.current);
-    }
-    if (located) {
-      L.circleMarker([located.lat, located.lng], {
-        radius: 9, color: '#ffffff', weight: 3, fillColor: '#3f76ed', fillOpacity: 1,
-      }).bindTooltip('Your device location').addTo(locationLayer.current);
-    }
+    const instance = map.current;
+    if (!instance) return;
+    locationLayer.current.forEach(marker => marker.remove());
+    locationLayer.current = [];
+    const addSpot = (point: Point, color: string, title: string) => {
+      const element = document.createElement('span');
+      element.className = 'map-location-dot';
+      element.style.backgroundColor = color;
+      element.title = title;
+      element.setAttribute('aria-label', title);
+      locationLayer.current.push(
+        new maplibregl.Marker({ element })
+          .setLngLat([point.lng, point.lat]).addTo(instance),
+      );
+    };
+    if (originLat !== undefined && originLng !== undefined)
+      addSpot({ lat: originLat, lng: originLng }, '#44877b', 'Search area');
+    if (located) addSpot(located, '#3f76ed', 'Your device location');
   }, [originLat, originLng, located]);
 
   useEffect(() => {
     if (originLat === undefined || originLng === undefined) return;
-    map.current?.panTo([originLat - 0.007, originLng + 0.005], { animate: false });
+    map.current?.jumpTo({ center: [originLng + 0.005, originLat - 0.007] });
   }, [originLat, originLng]);
 
   useEffect(() => {
-    if (!layer.current) return;
-    const markers = layer.current;
-    markers.clearLayers();
+    const instance = map.current;
+    if (!instance) return;
+    layer.current.forEach(marker => marker.remove());
+    layer.current = [];
     const seen = new Map<string, number>();
     for (const listing of listings) {
-      // Listings intentionally point to neighbourhood centres, not household addresses.
-      // Group only truly co-located coarse pins, not every account with the
-      // old Guwahati fallback localityId (new signups may live in any city).
+      // Preserve coarse public locations; offset only genuinely co-located markers.
       const locationKey = listing.location.lat.toFixed(2) + ',' + listing.location.lng.toFixed(2);
       const count = seen.get(locationKey) ?? 0;
       seen.set(locationKey, count + 1);
       const angle = count * 2.399963;
       const offset = Math.min(0.003, 0.00065 * Math.sqrt(count));
-      const label = document.createElement('span');
-      label.textContent = money(listing.rate);
-      const pin = L.marker([
-        listing.location.lat + Math.cos(angle) * offset,
-        listing.location.lng + Math.sin(angle) * offset,
-      ], {
-        title: listing.name,
-        alt: listing.name,
-        riseOnHover: true,
-        zIndexOffset: listing.id === active?.id ? 500 : 0,
-        icon: L.divIcon({
-          className: 'price-pin' + (listing.id === active?.id ? ' price-pin-active' : ''),
-          html: label,
-          iconSize: [62, 32],
-          iconAnchor: [31, 35],
-        }),
-      });
-      pin.on('click', () => selection.current(listing.id)).addTo(markers);
-      pin.bindTooltip(listing.name + ' · ' + listing.locality, { direction: 'top', offset: [0, -24] });
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = 'price-pin' + (listing.id === active?.id ? ' price-pin-active' : '');
+      pin.textContent = money(listing.rate);
+      pin.title = listing.name + ' · ' + listing.locality;
+      pin.setAttribute('aria-label', 'View ' + listing.name + ', ' + money(listing.rate));
+      pin.addEventListener('click', () => selection.current(listing.id));
+      const marker = new maplibregl.Marker({ element: pin, anchor: 'bottom' })
+        .setLngLat([
+          listing.location.lng + Math.sin(angle) * offset,
+          listing.location.lat + Math.cos(angle) * offset,
+        ]).addTo(instance);
+      layer.current.push(marker);
     }
   }, [listings, active?.id]);
 
@@ -148,17 +140,18 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
   }, [expanded]);
 
   function reset() {
-    const points = listings.map(({ location }) => L.latLng(location.lat, location.lng));
+    const points = listings.map(({ location }) => [location.lng, location.lat] as [number, number]);
     if (points.length > 1) {
-      map.current?.fitBounds(L.latLngBounds(points), {
-        paddingTopLeft: [42, 105],
-        paddingBottomRight: [68, 125],
-        maxZoom: 14,
-      });
+      const lngs = points.map(p => p[0]);
+      const lats = points.map(p => p[1]);
+      map.current?.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: { top: 105, bottom: 125, left: 42, right: 68 }, maxZoom: 14 },
+      );
     } else if (points.length === 1) {
-      map.current?.setView(points[0], 14);
+      map.current?.jumpTo({ center: points[0], zoom: 14 });
     } else {
-      map.current?.setView([originLat ?? centerLat, originLng ?? centerLng], 13);
+      map.current?.jumpTo({ center: [originLng ?? centerLng, originLat ?? centerLat], zoom: 13 });
     }
     setMapLabel(catalog.city);
     setPlaces([]);
@@ -184,7 +177,7 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
   }
 
   function focusPlace(place: PlaceResult) {
-    map.current?.flyTo([place.point.lat, place.point.lng], 14, { duration: 0.6 });
+    map.current?.flyTo({ center: [place.point.lng, place.point.lat], zoom: 14, duration: 600 });
     setMapLabel(place.label);
     setQuery(place.label);
     setPlaces([]);
@@ -206,7 +199,7 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
         setLocating(false);
         const point = { lat: coords.latitude, lng: coords.longitude };
         setLocated(point);
-        instance.flyTo([point.lat, point.lng], 15, { duration: 0.6 });
+        instance.flyTo({ center: [point.lng, point.lat], zoom: 15, duration: 600 });
         setMapLabel('Your location');
       },
       () => {
@@ -220,9 +213,7 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
 
   function retryTiles() {
     setTiles('loading');
-    map.current?.eachLayer((item) => {
-      if (item instanceof L.TileLayer) item.redraw();
-    });
+    map.current?.setStyle(ATLAS_STYLE_URL);
   }
 
   return <aside className={'map-shell' + (mobileVisible ? ' map-mobile-visible' : '') + (expanded ? ' map-expanded' : '')} aria-label="Map of nearby listings">
