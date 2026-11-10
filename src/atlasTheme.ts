@@ -1,49 +1,38 @@
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import theme from './maps/atlas-theme-v1.json';
+import { parseAtlasThemeBundle, resolveAtlasThemeBundle } from './atlas/style-core';
+import { applyAtlasStyleDocument, editableLayerInventory } from './atlas/styleRuntime';
 
-// Atlas theme v1 is a portable styling recipe, NOT a MapLibre style document.
-// The provider must match Atlas Lab's Positron base for its layer IDs to align.
+// The theme file is an Atlas authoring recipe, not a MapLibre style.
+// Use the same provider style and the same Atlas style compiler as Atlas Lab.
 export const ATLAS_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+const bundle = parseAtlasThemeBundle(JSON.stringify(theme));
 
-type ThemeGroup = { color: string; opacity?: number };
-const groups = theme.document.groups as Record<string, ThemeGroup>;
-const bindings = theme.document.bindings as Record<string, string[]>;
+export interface AtlasApplySummary {
+  propertyChanges: number;
+  changedLayerIds: number;
+  diagnostics: number;
+}
 
-export function applyAtlasTheme(map: MapLibreMap): void {
-  for (const [group, ids] of Object.entries(bindings)) {
-    const settings = groups[group];
-    if (!settings) continue;
-    for (const id of ids) {
-      const layer = map.getLayer(id);
-      if (!layer) continue; // Provider may change its layer inventory.
-      try {
-        switch (layer.type) {
-          case 'background':
-            map.setPaintProperty(id, 'background-color', settings.color);
-            break;
-          case 'fill':
-            map.setPaintProperty(id, 'fill-color', settings.color);
-            if (settings.opacity !== undefined) map.setPaintProperty(id, 'fill-opacity', settings.opacity);
-            break;
-          case 'fill-extrusion':
-            map.setPaintProperty(id, 'fill-extrusion-color', settings.color);
-            if (settings.opacity !== undefined) map.setPaintProperty(id, 'fill-extrusion-opacity', settings.opacity);
-            break;
-          case 'line':
-            map.setPaintProperty(id, 'line-color', settings.color);
-            break;
-          case 'circle':
-            map.setPaintProperty(id, 'circle-color', settings.color);
-            break;
-          case 'symbol':
-            if (group === 'labels' || group === 'poi') map.setPaintProperty(id, 'text-color', settings.color);
-            else map.setPaintProperty(id, 'icon-color', settings.color);
-            break;
-        }
-      } catch (error) {
-        // Keep the base map usable if a provider layer changes its paint schema.
-        console.warn('Atlas theme layer could not be styled:', id, error);
-      }
-    }
-  }
+export function applyAtlasTheme(map: MapLibreMap): AtlasApplySummary {
+  // Capture the provider style before any app-specific markers or modifications.
+  const baseStyle = map.getStyle();
+  if (!baseStyle?.layers?.length) throw new Error('Positron base style has no layers.');
+
+  // Atlas Lab's exact theme export pipeline:
+  // 1. Inspect actual provider layers.
+  // 2. Resolve the recipe's preset detail, advanced road/label and semantic defaults.
+  // 3. Apply the compiled property diffs without reloading tiles or moving the map.
+  const inventory = editableLayerInventory(baseStyle);
+  const document = resolveAtlasThemeBundle(bundle, inventory, baseStyle);
+  const resolved = applyAtlasStyleDocument(map, baseStyle, document);
+  const changedLayerIds = new Set(Object.keys(document.layers)).size;
+
+  const errors = resolved.diagnostics.filter(item => item.severity === 'error');
+  if (errors.length) console.warn('Atlas theme diagnostics:', errors);
+  return {
+    propertyChanges: resolved.propertyChanges,
+    changedLayerIds,
+    diagnostics: resolved.diagnostics.length,
+  };
 }
