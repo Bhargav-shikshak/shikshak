@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import '../maplibreSetup';
 import * as maplibregl from 'maplibre-gl';
 import { LocateFixed, MapPin, Search } from 'lucide-react';
 import type { HomeArea, Point } from '../../shared/domain';
