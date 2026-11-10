@@ -2,6 +2,8 @@
 
 [Shikshak](https://shikshak.co.in/) helps students find nearby tutors and request a first class. Tutors accept or decline the request. Accepted bookings open a classroom with scheduling, chat, lesson notes, PDF worksheets, homework submissions and feedback.
 
+[Official site](https://shikshak.co.in/) · [Live on Cloudflare Workers](https://shikshak.shikshak-as-classes.workers.dev/)
+
 **Stage:** pilot. The hosted build connects to Supabase through a Cloudflare Worker. Local development can run a browser-only demo with fictional Guwahati profiles and classroom history.
 
 ## Project timeline
