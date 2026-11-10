@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { LocateFixed, MapPin, Search } from 'lucide-react';
 import type { HomeArea, Point } from '../../shared/domain';
 import { ATLAS_STYLE_URL, applyAtlasTheme } from '../atlasTheme';
