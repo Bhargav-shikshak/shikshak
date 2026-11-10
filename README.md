@@ -1,16 +1,27 @@
-# Shikshak
+# Shikshak — Home Tutoring Marketplace
 
-[Open Shikshak](https://shikshak.co.in/) · [Workers URL](https://shikshak.shikshak-as-classes.workers.dev/)
+[Explore Shikshak](https://shikshak.co.in/) · [Worker deployment](https://shikshak.shikshak-as-classes.workers.dev/)
 
-Shikshak helps students find nearby tutors and request lessons. Tutors can set their rates and respond to requests. An accepted booking opens a private classroom where both can schedule lessons, chat and share notes, worksheets, homework and feedback.
+Shikshak connects students with nearby home tutors, making it possible to discover teachers on a map, compare rates, request lessons and continue learning in a private classroom. Tutors set their hourly rates, manage bookings and share teaching resources; students manage lessons, assignments and communication.
+
+## Product capabilities
+
+- Location-based teacher discovery with Atlas-powered MapLibre maps, neighbourhood search and approximate home-area pins.
+- Teacher-managed hourly pricing with a capped distance-based travel supplement.
+- Student-initiated lesson requests, teacher acceptance or decline, and private classrooms after acceptance.
+- Scheduling, chat, homework, feedback and private PDF learning materials.
+- Teacher verification, platform moderation and distinct owner/admin permissions.
+- Supabase-backed accounts and shared application data through a Cloudflare Worker.
+
+**Stack:** React · TypeScript · MapLibre GL JS · Atlas · Cloudflare Workers · Supabase Auth · PostgreSQL · Storage
 
 ## Project timeline
 
 | Phase | What changed |
 | --- | --- |
-| Early November 2026 · StudyLane | Started as a map-based home-tutor discovery and mutual matching prototype. The first interactive demo added test accounts, profiles and classroom activity. |
-| 4–5 November · Shikshak and bookings | Renamed the product and moved to student-initiated requests. Teachers can accept or decline, and accepted requests unlock classroom resources. Legacy demo matches migrate to accepted bookings so existing lessons and messages remain usable. |
-| 5 November · [Map and backend](https://github.com/Bhargav-shikshak/shikshak/pull/1) | Replaced CARTO with Leaflet and OpenStreetMap. Connected Supabase accounts, shared bookings and private PDF storage through a same-origin Worker, then merged the backend pilot to `main`. |
+| Early November 2026 · StudyLane | Started as a map-based home-tutor discovery and mutual matching workflow. Early iterations established profiles and classroom activity. |
+| 4–5 November · Shikshak and bookings | Renamed the product and moved to student-initiated requests. Teachers can accept or decline, and accepted requests unlock classroom resources. Earlier matches migrate to accepted bookings so existing lessons and messages remain usable. |
+| 5 November · [Map and backend](https://github.com/Bhargav-shikshak/shikshak/pull/1) | Replaced CARTO with Leaflet and OpenStreetMap. Connected Supabase accounts, shared bookings and private PDF storage through a same-origin Worker, then merged the backend integration to `main`. |
 | 6 November · [Pricing and staff roles](https://github.com/Bhargav-shikshak/shikshak/pull/6) | Merged teacher-set base rates, a capped travel supplement and distinct owner/admin responsibilities. A [follow-up](https://github.com/Bhargav-shikshak/shikshak/commit/0217db39) made teacher verification a badge for published listings, with booking availability governed separately. The production database upgrade is applied separately from the code merge. |
 | 7 November · [Public landing page](https://github.com/Bhargav-shikshak/shikshak/pull/7) | Added an introduction to the tutoring and booking flow, with clearly illustrative reviews. |
 | 10 November · [Atlas MapLibre migration](https://github.com/Bhargav-shikshak/shikshak/pull/8) | Merged to `main`. Discovery and home-area maps now use MapLibre and Atlas Pastel City, with existing markers and home-area behaviour preserved. |
