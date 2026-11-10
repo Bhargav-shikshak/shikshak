@@ -8,7 +8,7 @@ The committed `src/maps/atlas-theme-v1.json` is the original exported **Atlas th
 
 `https://tiles.openfreemap.org/styles/positron`
 
-`src/atlasTheme.ts` applies the exported color and opacity bindings to the live base-style layers in the `style.load` event. Missing provider layer IDs are skipped rather than crashing the map. This adapter currently applies exported group paint settings; Atlas Lab's derived preset-specific advanced/detail/semantic defaults are not bundled as a precompiled style here. For pixel-perfect parity with Atlas Lab, reuse the full `resolveAtlasThemeBundle` compiler when Atlas packages become distributable.
+`src/atlasTheme.ts` now runs Atlas's real `parseAtlasThemeBundle`, `resolveAtlasThemeBundle` and `applyAtlasStyleDocument` pipeline on the loaded Positron style. This restores the Pastel City preset's derived detail settings, road-class contrast/widths/outlines, advanced text sizing, and semantic feature styling, not just the top-level palette. The pure styling compiler is a pinned MIT-licensed snapshot of Atlas in `src/atlas/style-core/`; provenance and revision are in `src/atlas/README.md`. Missing provider layer IDs are reported as diagnostics without crashing the map. The same base provider and version are needed for exact layer-level parity.
 
 Map provider availability, attribution, and allowed usage must be reviewed before production rollout; exporting a theme does not license map tiles.
 
@@ -21,4 +21,4 @@ Map provider availability, attribution, and allowed usage must be reviewed befor
 5. Verify teacher booking, accepting/declining, chat and classroom workflows remain unchanged.
 6. Confirm the map loads on mobile, provider attribution remains visible, and error/retry behavior is usable.
 
-Automated check: `npm ci && npm run build && npm run test:platform && npm run test:home-area`. A browser/device pass is still required because CI does not render WebGL tiles.
+Automated checks: `npm ci && npm run build && npm run test:platform && npm run test:home-area`. The feature-branch GitHub Actions job additionally runs Chromium with a mocked GeoJSON provider style to assert WebGL rendering, active worker and nonzero Atlas style patches; actual provider coverage and device-specific cartography still require visual comparison with Atlas Lab.
