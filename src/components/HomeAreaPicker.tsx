@@ -44,10 +44,16 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
       scrollZoom: false, dragRotate: false, pitchWithRotate: false,
     });
     map.current = instance;
+    const canvasNode = mapNode.current;
+    canvasNode.dataset.mapStatus = 'loading';
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     instance.on('style.load', () => applyAtlasTheme(instance));
+    instance.on('idle', () => {
+      canvasNode.dataset.mapStatus = 'ready';
+    });
     instance.on('error', (event) => {
       console.warn('Home area basemap failed to load:', event.error);
+      canvasNode.dataset.mapStatus = 'error';
       setError('Map is temporarily unavailable. Try searching for a place.');
     });
     const resize = new ResizeObserver(() => instance.resize());
