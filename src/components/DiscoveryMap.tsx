@@ -48,7 +48,6 @@ export function DiscoveryMap({ catalog, listings, origin, active, onSelect, onOp
       center: [centerLng, centerLat],
       zoom: 13, minZoom: 2, maxZoom: 19,
       scrollZoom: false, dragRotate: false, pitchWithRotate: false,
-      attributionControl: true,
     });
     map.current = instance;
     instance.on('style.load', () => {
