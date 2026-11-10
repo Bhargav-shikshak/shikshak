@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import '../maplibreSetup';
 import * as maplibregl from 'maplibre-gl';
 import { ArrowRight, Crosshair, Layers3, LocateFixed, MapPin, Maximize2, Minus, Plus, Search, X } from 'lucide-react';
 import type { Catalog, DiscoveryListing, Point } from '../../shared/domain';
