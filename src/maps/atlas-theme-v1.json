@@ -1,0 +1,134 @@
+{
+  "format": "atlas-theme",
+  "schemaVersion": 1,
+  "styleDocumentVersion": 2,
+  "presetId": "pastel-city",
+  "vectorStyle": "positron",
+  "document": {
+    "schemaVersion": 2,
+    "id": "pastel-city",
+    "name": "Pastel City",
+    "baseStyle": "positron",
+    "groups": {
+      "land": {
+        "color": "#F8F5FC"
+      },
+      "water": {
+        "color": "#B8DDF3"
+      },
+      "parks": {
+        "color": "#D2E9D3"
+      },
+      "roads": {
+        "color": "#FFFFFF"
+      },
+      "buildings": {
+        "color": "#E5DAF3",
+        "opacity": 0.92
+      },
+      "labels": {
+        "color": "#54546F"
+      },
+      "boundaries": {
+        "color": "#BDA9CF"
+      },
+      "transit": {
+        "color": "#B498CB"
+      },
+      "poi": {
+        "color": "#C28DB6"
+      }
+    },
+    "bindings": {
+      "land": [
+        "background"
+      ],
+      "parks": [
+        "park",
+        "landcover_ice_shelf",
+        "landcover_glacier",
+        "landuse_residential",
+        "landcover_wood"
+      ],
+      "water": [
+        "water",
+        "waterway"
+      ],
+      "buildings": [
+        "building"
+      ],
+      "roads": [
+        "tunnel_motorway_casing",
+        "tunnel_motorway_inner",
+        "road_area_pier",
+        "road_pier",
+        "highway_path",
+        "highway_minor",
+        "highway_major_casing",
+        "highway_major_inner",
+        "highway_major_subtle",
+        "highway_motorway_casing",
+        "highway_motorway_inner",
+        "highway_motorway_subtle",
+        "railway_transit",
+        "railway_transit_dashline",
+        "railway_service",
+        "railway_service_dashline",
+        "railway",
+        "railway_dashline",
+        "highway_motorway_bridge_casing",
+        "highway_motorway_bridge_inner"
+      ],
+      "boundaries": [
+        "boundary_3",
+        "boundary_2",
+        "boundary_disputed"
+      ],
+      "labels": [
+        "waterway_line_label",
+        "water_name_line_label",
+        "highway-name-path",
+        "highway-name-minor",
+        "highway-name-major",
+        "highway-shield-non-us",
+        "highway-shield-us-interstate",
+        "road_shield_us",
+        "label_other",
+        "label_village",
+        "label_town",
+        "label_state",
+        "label_city",
+        "label_city_capital",
+        "label_country_3",
+        "label_country_2",
+        "label_country_1"
+      ],
+      "poi": [
+        "water_name_point_label"
+      ]
+    },
+    "layers": {},
+    "metadata": {
+      "preset": "pastel-city",
+      "presetDetailVersion": 2,
+      "presetAdvancedVersion": 4,
+      "presetSemanticVersion": 1,
+      "bindingMode": "suggested-review-required",
+      "note": "Features and exact layer matches depend on the provider's actual style.",
+      "authoredOnBaseStyle": "positron",
+      "originalPresetBaseStyle": "positron",
+      "studioInstantPreview": true
+    }
+  },
+  "customPalette": null,
+  "detailOverrides": {
+    "roads": {},
+    "features": {}
+  },
+  "advancedOverrides": {
+    "roads": {},
+    "labels": {},
+    "features": {}
+  },
+  "semanticOverrides": {}
+}

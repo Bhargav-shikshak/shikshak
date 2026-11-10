@@ -13,6 +13,8 @@
 | 5 November · [Map and backend](https://github.com/Bhargav-shikshak/shikshak/pull/1) | Replaced CARTO with Leaflet and OpenStreetMap. Connected Supabase accounts, shared bookings and private PDF storage through a same-origin Worker, then merged the backend pilot to `main`. |
 | 6 November · [Pricing and staff roles](https://github.com/Bhargav-shikshak/shikshak/pull/6) | Merged teacher-set base rates, a capped travel supplement and distinct owner/admin responsibilities. A [follow-up](https://github.com/Bhargav-shikshak/shikshak/commit/0217db39) made teacher verification a badge for published listings, with booking availability governed separately. The production database upgrade is applied separately from the code merge. |
 
+| 10 November · [Atlas MapLibre migration](https://github.com/Bhargav-shikshak/shikshak/tree/feat/maplibre-atlas-pastel-city) | Feature branch migrating discovery and home-area maps from Leaflet to MapLibre, applying the portable Atlas Pastel City theme while preserving application markers, location privacy, geocoding and booking workflows. Not yet merged. |
+
 ## Problems solved
 
 - **Location privacy.** Students discover teachers on a map. Teacher accounts have no student discovery endpoint, and booking responses omit student home coordinates. Discovery uses approximate neighbourhood pins, with a rolling 30-day limit on changing the saved home area.
@@ -46,9 +48,11 @@ npm run test:backend
 | --- | --- |
 | Interface | React and TypeScript with a centralized API client in `src/api.ts` |
 | Local demo | `src/services/browserDemo.ts`, browser-local state and IndexedDB PDFs |
-| Maps | Leaflet, OpenStreetMap and Photon-compatible place lookup with a Nominatim fallback |
+| Maps | MapLibre GL JS using Atlas Pastel City over OpenFreeMap Positron; Photon-compatible geocoding with a Nominatim fallback |
 | Hosted backend | `backend/worker.ts`, Cloudflare Workers, Supabase Auth, PostgreSQL and private Storage |
 | Database setup | `supabase/` schema, policies, storage checks and pricing/role upgrade SQL |
+
+The [Atlas integration notes](docs/ATLAS_MAPLIBRE.md) explain the theme recipe, provider dependency and verification checklist.
 
 Cloudflare builds `main` and serves the app and same-origin API. See [backend setup](docs/BACKEND.md) for the initial pilot architecture and [pricing and verification rollout](docs/OWNER_VERIFICATION_PRICING.md) for database migration and verification steps. Those documents describe the original branch rollout. Check the target environment’s schema before testing the newer pricing, verification and owner flows. Privileged owner actions in the upgraded schema require an MFA-verified session.
 

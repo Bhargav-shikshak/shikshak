@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
+import '../maplibreSetup';
+import * as maplibregl from 'maplibre-gl';
 import { LocateFixed, MapPin, Search } from 'lucide-react';
 import type { HomeArea, Point } from '../../shared/domain';
-import { mapConfig } from '../mapConfig';
+import { ATLAS_STYLE_URL, applyAtlasTheme } from '../atlasTheme';
 import { searchPlaces, type PlaceResult } from '../services/placeSearch';
 import { approximateHomePoint, reverseHomeArea } from '../services/homeArea';
-import 'leaflet/dist/leaflet.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface Props {
   value: HomeArea | null;
@@ -16,8 +17,8 @@ interface Props {
 
 export function HomeAreaPicker({ value, onChange, center, disabled = false }: Props) {
   const mapNode = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const marker = useRef<L.Marker | null>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const marker = useRef<maplibregl.Marker | null>(null);
   const initial = useRef(value ?? center);
   // Keep the exact tap/drag location in memory for the visible pin. Only a
   // rounded kilometre-scale coordinate is passed to persisted account state.
@@ -35,22 +36,43 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
 
   useEffect(() => {
     if (!mapNode.current || disabled) return;
-    const instance = L.map(mapNode.current, {
-      zoomControl: true, scrollWheelZoom: false, minZoom: 2, maxZoom: 18,
-    }).setView([initial.current.lat, initial.current.lng], 13);
+    const instance = new maplibregl.Map({
+      container: mapNode.current,
+      style: ATLAS_STYLE_URL,
+      center: [initial.current.lng, initial.current.lat],
+      zoom: 13, minZoom: 2, maxZoom: 18,
+      scrollZoom: false, dragRotate: false, pitchWithRotate: false,
+    });
     map.current = instance;
-    L.tileLayer(mapConfig.tileUrl, {
-      maxZoom: mapConfig.tileMaxZoom,
-      attribution: mapConfig.tileAttribution, keepBuffer: 1,
-    }).addTo(instance);
-    instance.attributionControl.setPrefix(false);
-    const resize = new ResizeObserver(() => instance.invalidateSize({ pan: false }));
+    const canvasNode = mapNode.current;
+    canvasNode.dataset.mapStatus = 'loading';
+    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    instance.on('style.load', () => {
+      try {
+        const result = applyAtlasTheme(instance);
+        canvasNode.dataset.atlasPropertyChanges = String(result.propertyChanges);
+        canvasNode.dataset.atlasChangedLayers = String(result.changedLayerIds);
+      } catch (cause) {
+        canvasNode.dataset.mapStatus = 'error';
+        console.error('Unable to apply complete Atlas map theme:', cause);
+        setError('Map theme could not be applied. Please retry or reload the page.');
+      }
+    });
+    instance.on('idle', () => {
+      canvasNode.dataset.mapStatus = 'ready';
+    });
+    instance.on('error', (event) => {
+      console.warn('Home area basemap failed to load:', event.error);
+      canvasNode.dataset.mapStatus = 'error';
+      setError('Map is temporarily unavailable. Try searching for a place.');
+    });
+    const resize = new ResizeObserver(() => instance.resize());
     resize.observe(mapNode.current);
-    setTimeout(() => instance.invalidateSize({ pan: false }), 40);
-    instance.on('click', event => { void place(event.latlng); });
+    instance.on('click', event => { void place({ lat: event.lngLat.lat, lng: event.lngLat.lng }); });
     return () => {
       requestIndex.current++;
       resize.disconnect();
+      marker.current?.remove();
       instance.remove();
       marker.current = null;
       map.current = null;
@@ -81,24 +103,21 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
       marker.current = null;
       return;
     }
-    const point = L.latLng(visiblePoint.lat, visiblePoint.lng);
-    if (marker.current) marker.current.setLatLng(point);
+    if (marker.current) marker.current.setLngLat([visiblePoint.lng, visiblePoint.lat]);
     else {
-      marker.current = L.marker(point, {
-        keyboard: false,
-        draggable: true,
-        autoPan: true,
-        // CSS marker avoids Leaflet's default PNG asset-path issues in Vite.
-        icon: L.divIcon({
-          className: 'home-area-marker',
-          html: '<span aria-hidden="true"></span>',
-          iconSize: [28, 34], iconAnchor: [14, 30],
-        }),
-      }).addTo(instance).bindTooltip('Drag to adjust your home neighbourhood marker');
-      marker.current.on('dragend', event => {
-        const dragged = (event.target as L.Marker).getLatLng();
+      const element = document.createElement('div');
+      element.className = 'home-area-marker';
+      const pin = document.createElement('span');
+      pin.setAttribute('aria-hidden', 'true');
+      element.appendChild(pin);
+      element.title = 'Drag to adjust your home neighbourhood marker';
+      const selected = new maplibregl.Marker({ element, anchor: 'bottom', draggable: true })
+        .setLngLat([visiblePoint.lng, visiblePoint.lat]).addTo(instance);
+      selected.on('dragend', () => {
+        const dragged = selected.getLngLat();
         void place({ lat: dragged.lat, lng: dragged.lng });
       });
+      marker.current = selected;
     }
   }, [visiblePoint?.lat, visiblePoint?.lng, disabled]);
 
@@ -144,7 +163,7 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
   function select(placeResult: PlaceResult) {
     setSearch(placeResult.label);
     setPlaces([]);
-    map.current?.flyTo([placeResult.point.lat, placeResult.point.lng], 14, { duration: .45 });
+    map.current?.flyTo({ center: [placeResult.point.lng, placeResult.point.lat], zoom: 14, duration: 450 });
     void place(placeResult.point);
   }
 
@@ -153,7 +172,7 @@ export function HomeAreaPicker({ value, onChange, center, disabled = false }: Pr
     setError('');
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        map.current?.flyTo([coords.latitude, coords.longitude], 14);
+        map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 14 });
         void place({ lat: coords.latitude, lng: coords.longitude });
       },
       () => setError('Location permission denied or unavailable. You can search or tap the map.'),

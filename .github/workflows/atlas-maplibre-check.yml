@@ -1,0 +1,35 @@
+name: Atlas MapLibre browser validation
+on:
+  push:
+    branches:
+      - feat/maplibre-atlas-pastel-city
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Type check and build
+        run: npm run build
+      - name: Existing platform regression
+        run: |
+          npm run test:platform
+          npm run test:browser-demo
+          npm run test:pdf-notes
+          npm run test:home-area
+          npm run test:backend
+      - name: Install temporary Playwright browser-test runtime
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.64.1
+          npx playwright install --with-deps chromium
+      - name: Verify actual MapLibre rendering in Chromium
+        run: node scripts/verify-atlas-map-render.mjs
