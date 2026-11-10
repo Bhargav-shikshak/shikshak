@@ -1,10 +1,8 @@
 # Shikshak
 
-[Shikshak](https://shikshak.co.in/) helps students find nearby tutors and request a first class. Tutors accept or decline the request. Accepted bookings open a classroom with scheduling, chat, lesson notes, PDF worksheets, homework submissions and feedback.
+[Open Shikshak](https://shikshak.co.in/) · [Workers URL](https://shikshak.shikshak-as-classes.workers.dev/)
 
-[Official site](https://shikshak.co.in/) · [Live on Cloudflare Workers](https://shikshak.shikshak-as-classes.workers.dev/)
-
-**Stage:** pilot. The hosted build connects to Supabase through a Cloudflare Worker. Local development can run a browser-only demo with fictional Guwahati profiles and classroom history.
+Shikshak helps students find nearby tutors and request lessons. Tutors can set their rates and respond to requests. An accepted booking opens a private classroom where both can schedule lessons, chat and share notes, worksheets, homework and feedback.
 
 ## Project timeline
 
@@ -17,7 +15,7 @@
 | 7 November · [Public landing page](https://github.com/Bhargav-shikshak/shikshak/pull/7) | Added an introduction to the tutoring and booking flow, with clearly illustrative reviews. |
 | 10 November · [Atlas MapLibre migration](https://github.com/Bhargav-shikshak/shikshak/pull/8) | Merged to `main`. Discovery and home-area maps now use MapLibre and Atlas Pastel City, with existing markers and home-area behaviour preserved. |
 
-**Today:** A hosted tutoring pilot with map discovery, teacher-set rates in the upgraded schema, booking requests and participant-scoped classrooms.
+**Today:** Shikshak combines map-based discovery, lesson requests and private classrooms. The upgraded database schema supports teacher-set rates.
 
 ## Engineering challenges and solutions
 
@@ -62,4 +60,4 @@ The [Atlas integration notes](docs/ATLAS_MAPLIBRE.md) explain the theme recipe, 
 
 Cloudflare builds `main` and serves the app and same-origin API. See [backend setup](docs/BACKEND.md) for the initial pilot architecture and [pricing and verification rollout](docs/OWNER_VERIFICATION_PRICING.md) for database migration and verification steps. Those documents describe the original branch rollout. Check the target environment’s schema before testing the newer pricing, verification and owner flows. Privileged owner actions in the upgraded schema require an MFA-verified session.
 
-The pilot still has release work around safeguarding, account recovery and operational review. The demo uses fictional accounts. Payments are outside the current pilot.
+Shikshak handles discovery, bookings and classroom coordination. Payments, account recovery and additional safeguarding workflows are outside the current scope.
