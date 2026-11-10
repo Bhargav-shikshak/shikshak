@@ -75,6 +75,12 @@ try {
     throw new Error('MapLibre did not finish processing GeoJSON tiles with its worker. ' +
       'Browser errors: ' + errors.join(' | ') + '. ' + error);
   }
+  const atlasPropertyChanges = Number(await map.getAttribute('data-atlas-property-changes'));
+  const atlasChangedLayers = Number(await map.getAttribute('data-atlas-changed-layers'));
+  assert(atlasPropertyChanges >= 2,
+    'Atlas preset compiler should patch the test map, not only load base colors: ' + atlasPropertyChanges);
+  assert(atlasChangedLayers >= 1,
+    'Atlas preset compiler should resolve its advanced layer settings: ' + atlasChangedLayers);
   const workerURLs = page.workers().map(worker => worker.url());
   assert(workerURLs.some(url => url.includes('maplibre-gl-worker')),
     'MapLibre worker was not created; workers: ' + workerURLs.join(', '));
@@ -83,7 +89,7 @@ try {
     'Map container must be visible and nonzero in the signup form');
   assert(!errors.some(error => /worker failed|webgl.*not supported|failed to construct.*worker/i.test(error)),
     'MapLibre worker/WebGL console error: ' + errors.join(' | '));
-  console.log('MapLibre signup map browser check passed: bundled worker running, GeoJSON features processed, map idle and visible.');
+  console.log('MapLibre signup map browser check passed: bundled worker running, GeoJSON features processed, map idle and visible. Atlas applied ' + atlasPropertyChanges + ' paint/layout patches across ' + atlasChangedLayers + ' resolved layers.');
 } finally {
   await browser?.close();
   preview.kill('SIGTERM');
