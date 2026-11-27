@@ -104,7 +104,7 @@ function App() {
     if (!session || routeParts[0] === 'welcome') {
       document.title = routeParts[0] === 'login' ? 'Log in · Shikshak' :
         routeParts[0] === 'signup' ? 'Sign up · Shikshak' :
-        'Shikshak · Home tuition, closer to home';
+        'Shikshak | Find Home Tutors in Guwahati';
       return;
     }
     document.title = ((session.role === 'admin' || session.role === 'owner') ? 'Admin' : view === 'explore' ? 'Explore' : view === 'home' ? 'Home' : view === 'classroom' ? 'Classroom' : view === 'classrooms' ? 'Classes' : view === 'profile' ? 'Profile' : view === 'listing' ? 'My listing' : 'Bookings') + ' · Shikshak';
