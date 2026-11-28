@@ -1,3 +1,4 @@
+import { publicSeo } from './seo';
 import { catalog } from '../demo/seed';
 // Keep the legacy class export so existing Cloudflare bindings remain valid.
 export { DemoSession } from '../demo/worker';
@@ -273,6 +274,6 @@ export async function handleApi(request: Request, env: Environment): Promise<Res
 export default {
   async fetch(request: Request, env: Environment) {
     if (new URL(request.url).pathname.startsWith('/api/')) return handleApi(request, env);
-    return env.ASSETS.fetch(request);
+    return publicSeo(request) ?? env.ASSETS.fetch(request);
   },
 };

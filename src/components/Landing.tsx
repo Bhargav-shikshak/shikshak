@@ -182,6 +182,7 @@ export function Landing({ memberHref }: { memberHref?: string }) {
         </div>
       </section>
 
+      <section className="landing-section" aria-label="Local tuition discovery"><h2>Explore tuition in Guwahati</h2><p><a href="/tutors/guwahati">Find home tutors by subject and neighbourhood</a> · <a href="/tuition-jobs/guwahati">Home tuition opportunities for teachers</a></p></section>
       <section className="landing-closing" aria-labelledby="landing-closing-heading">
         <span className="landing-closing-doodle" aria-hidden="true"><GraduationCap size={75}/></span>
         <p className="landing-kicker">YOUR NEXT CHAPTER STARTS HERE</p>
