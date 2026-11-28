@@ -3,11 +3,15 @@ import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 const seed = ts.transpileModule(await readFile('demo/seed.ts','utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
 const { catalog } = await import('data:text/javascript;base64,' + Buffer.from(seed).toString('base64'));
+const seoSource = (await readFile('backend/seo.ts','utf8')).replace("import { catalog } from '../demo/seed';", 'const catalog = ' + JSON.stringify(catalog) + ';');
+const seoJs = ts.transpileModule(seoSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const seoUrl = 'data:text/javascript;base64,' + Buffer.from(seoJs).toString('base64');
 let source = await readFile('backend/worker.ts','utf8');
+source = source.replace("from './seo'", 'from ' + JSON.stringify(seoUrl));
 source = source.replace("import { catalog } from '../demo/seed';", 'const catalog = ' + JSON.stringify(catalog) + ';')
   .replace("export { DemoSession } from '../demo/worker';",'');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { handleApi } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
+const { handleApi, default: worker } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 const env = { SUPABASE_URL:'https://test.supabase.co', SUPABASE_PUBLISHABLE_KEY:'public-test-key' };
 const originalFetch = globalThis.fetch;
 let calls = [], handler = () => Response.json({});
@@ -21,6 +25,11 @@ const me = {id:'11111111-1111-4111-8111-111111111111',name:'Student',role:'stude
 const cookie = '__Host-shikshak_access=access-token; __Host-shikshak_refresh=refresh-token';
 let response;
 try {
+ const workerEnv = {...env, ASSETS:{fetch: async () => new Response('existing app')}};
+ response=await worker.fetch(new Request('https://app.example/tutors/guwahati'),workerEnv);assert.equal(response.status,200);assert((await response.text()).includes('Find home tutors in Guwahati'));
+ response=await worker.fetch(new Request('https://app.example/sitemap.xml'),workerEnv);assert.equal(response.status,200);assert((await response.text()).includes('<urlset'));
+ response=await worker.fetch(new Request('https://app.example/'),workerEnv);assert.equal(await response.text(),'existing app');
+ response=await worker.fetch(new Request('https://app.example/api/v1/catalog'),workerEnv);assert.equal(response.status,200);assert.equal((await response.json()).demo,false);
  response=await handleApi(request('catalog'),env); assert.equal(response.status,200); assert.equal((await response.json()).demo,false); assert.equal(calls.length,0);
  response=await handleApi(request('auth/me'),env); assert.equal(response.status,401);
  response=await handleApi(request('auth/login',{method:'POST',body:{email:'student@example.test',password:'test-password'},headers:{origin:'https://evil.example'}}),env); assert.equal(response.status,403);

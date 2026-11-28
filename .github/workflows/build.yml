@@ -21,6 +21,8 @@ jobs:
         run: npm ci
       - name: Type-check and build
         run: npm run build
+      - name: Verify public SEO routes
+        run: npm run test:seo
       - name: Verify Supabase HTTP gateway
         run: npm run test:backend
       - name: Verify authentication and classroom workflows

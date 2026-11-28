@@ -7,7 +7,16 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": [
-      "/api/*"
+      "/api/*",
+      "/sitemap.xml",
+      "/tutors",
+      "/tutors/*",
+      "/home-tuition",
+      "/home-tuition/*",
+      "/tuition-jobs",
+      "/tuition-jobs/*",
+      "/teacher",
+      "/teacher/*"
     ]
   },
   "vars": {
